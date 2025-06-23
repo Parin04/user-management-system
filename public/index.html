@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารผู้ใช้งาน</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .main-app {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .navbar {
+            background: #34495e;
+            padding: 0;
+            display: flex;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: white;
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background: #2c3e50;
+        }
+
+        .content {
+            padding: 30px;
+            min-height: 500px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #219a52;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .table th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .table td {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+            }
+            
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+            
+            .table-container {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Form -->
+    <div id="loginContainer" class="login-container">
+        <div class="login-box">
+            <h2><i class="fas fa-user-shield"></i> เข้าสู่ระบบ</h2>
+            <div id="loginAlert"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">ชื่อผู้ใช้:</label>
+                    <input type="text" id="username" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">รหัสผ่าน:</label>
+                    <input type="password" id="password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="main-app">
+        <div class="header">
+            <h1><i class="fas fa-users-cog"></i> ระบบบริหารผู้ใช้งาน</h1>
+            <div class="user-info">
+                <span id="userInfo"></span>
+                <button class="btn btn-secondary" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+                </button>
+            </div>
+        </div>
+
+        <div class="navbar">
+            <button class="nav-btn" id="navUsers" onclick="showSection('users')">
+                <i class="fas fa-users"></i> ผู้ใช้งาน
+            </button>
+            <button class="nav-btn" id="navCustomers" onclick="showSection('customers')">
+                <i class="fas fa-handshake"></i> ลูกค้า
+            </button>
+            <button class="nav-btn" id="navEmployees" onclick="showSection('employees')">
+                <i class="fas fa-id-badge"></i> พนักงาน
+            </button>
+        </div>
+
+        <div class="container">
+            <div class="content">
+                <!-- Users Section -->
+                <div id="usersSection" class="section">
+                    <div class="actions">
+                        <button class="btn btn-success" onclick="openModal('userModal')">
+                            <i class="fas fa-plus"></i> เพิ่มผู้ใช้งาน
+                        </button>
+                    </div>
+                    <div id="usersAlert"></div>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>ชื่อผู้ใช้</th>
+                                    <th>อีเมล</th>
+                                    <th>ชื่อเต็ม</th>
+                                    <th>บทบาท</th>
+                                    <th>แผนก</th>
+                                    <th>จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Customers Section -->
+                <div id="customersSection" class="section" style="display: none;">
+                    <div class="actions">
+                        <button class="btn btn-success" onclick="openModal('customerModal')">
+                            <i class="fas fa-plus"></i> เพิ่มลูกค้า
+                        </button>
+                    </div>
+                    <div id="customersAlert"></div>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>ชื่อลูกค้า</th>
+                                    <th>บริษัท</th>
+                                    <th>อีเมล</th>
+                                    <th>โทรศัพท์</th>
+                                    <th>สถานะ</th>
+                                    <th>จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customersTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Employees Section -->
+                <div id="employeesSection" class="section" style="display: none;">
+                    <div class="actions">
+                        <button class="btn btn-success" onclick="openModal('employeeModal')">
+                            <i class="fas fa-plus"></i> เพิ่มพนักงาน
+                        </button>
+                    </div>
+                    <div id="employeesAlert"></div>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>รหัสพนักงาน</th>
+                                    <th>ชื่อ-นามสกุล</th>
+                                    <th>อีเมล</th>
+                                    <th>ตำแหน่ง</th>
+                                    <th>แผนก</th>
+                                    <th>สถานะ</th>
+                                    <th>จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeesTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="userModalTitle">เพิ่มผู้ใช้งาน</h3>
+                <span class="close" onclick="closeModal('userModal')">&times;</span>
+            </div>
+            <form id="userForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="userUsername">ชื่อผู้ใช้:</label>
+                        <input type="text" id="userUsername" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userEmail">อีเมล:</label>
+                        <input type="email" id="userEmail" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="userPassword">รหัสผ่าน:</label>
+                        <input type="password" id="userPassword" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userRole">บทบาท:</label>
+                        <select id="userRole" class="form-control" required>
+                            <option value="">เลือกบทบาท</option>
+                            <option value="admin">แอดมิน</option>
+                            <option value="sales">ฝ่ายขาย</option>
+                            <option value="hr">ฝ่ายบุคคล</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="userFullName">ชื่อเต็ม:</label>
+                        <input type="text" id="userFullName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userPhone">โทรศัพท์:</label>
+                        <input type="tel" id="userPhone" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="userDepartment">แผนก:</label>
+                    <input type="text" id="userDepartment" class="form-control">
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> บันทึก
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('userModal')">
+                        <i class="fas fa-times"></i> ยกเลิก
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Customer Modal -->
+    <div id="customerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="customerModalTitle">เพิ่มลูกค้า</h3>
+                <span class="close" onclick="closeModal('customerModal')">&times;</span>
+            </div>
+            <form id="customerForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="customerName">ชื่อลูกค้า:</label>
+                        <input type="text" id="customerName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="companyName">ชื่อบริษัท:</label>
+                        <input type="text" id="companyName" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="customerEmail">อีเมล:</label>
+                        <input type="email" id="customerEmail" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="customerPhone">โทรศัพท์:</label>
+                        <input type="tel" id="customerPhone" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="customerAddress">ที่อยู่:</label>
+                    <textarea id="customerAddress" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="contactPerson">ผู้ติดต่อ:</label>
+                        <input type="text" id="contactPerson" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="customerStatus">สถานะ:</label>
+                        <select id="customerStatus" class="form-control">
+                            <option value="active">ใช้งาน</option>
+                            <option value="inactive">ไม่ใช้งาน</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> บันทึก
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('customerModal')">
+                        <i class="fas fa-times"></i> ยกเลิก
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Employee Modal -->
+    <div id="employeeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="employeeModalTitle">เพิ่มพนักงาน</h3>
+                <span class="close" onclick="closeModal('employeeModal')">&times;</span>
+            </div>
+            <form id="employeeForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="employeeId">รหัสพนักงาน:</label>
+                        <input type="text" id="employeeId" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="employeeEmail">อีเมล:</label>
+                        <input type="email" id="employeeEmail" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">ชื่อ:</label>
+                        <input type="text" id="firstName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">นามสกุล:</label>
+                        <input type="text" id="lastName" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="employeePhone">โทรศัพท์:</label>
+                        <input type="tel" id="employeePhone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="position">ตำแหน่ง:</label>
+                        <input type="text" id="position" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="employeeDepartment">แผนก:</label>
+                        <input type="text" id="employeeDepartment" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="salary">เงินเดือน:</label>
+                        <input type="number" id="salary" class="form-control" step="0.01">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hireDate">วันที่เริ่มงาน:</label>
+                        <input type="date" id="hireDate" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="employeeStatus">สถานะ:</label>
+                        <select id="employeeStatus" class="form-control">
+                            <option value="active">ใช้งาน</option>
+                            <option value="inactive">ไม่ใช้งาน</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> บันทึก
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('employeeModal')">
+                        <i class="fas fa-times"></i> ยกเลิก
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUser = null;
+        let currentEditId = null;
+        let currentEditType = null;
+        const API_BASE = '/api';
+
+        // Authentication
+        function getToken() {
+            return localStorage.getItem('token');
+        }
+
+        function setToken(token) {
+            localStorage.setItem('token', token);
+        }
+
+        function removeToken() {
+            localStorage.removeItem('token');
+        }
+
+        // API Helper
+        async function apiCall(endpoint, options = {}) {
+            const token = getToken();
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
+                ...options
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, config);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'เกิดข้อผิดพลาด');
+                }
+
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const data = await apiCall('/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password })
+                });
+                
+                setToken(data.token);
+                currentUser = data.user;
+                
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                
+                initializeApp();
+            } catch (error) {
+                showAlert('loginAlert', error.message, 'error');
+            }
+        });
+
+        // Initialize app
+        async function initializeApp() {
+            try {
+                const user = await apiCall('/me');
+                currentUser = user;
+                
+                document.getElementById('userInfo').textContent = `${user.full_name} (${getRoleText(user.role)})`;
+                
+                setupNavigation();
+                showSection('users');
+            } catch (error) {
+                logout();
+            }
+        }
+
+        // Setup navigation based on user role
+        function setupNavigation() {
+            const navUsers = document.getElementById('navUsers');
+            const navCustomers = document.getElementById('navCustomers');
+            const navEmployees = document.getElementById('navEmployees');
+            
+            navUsers.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
+            navCustomers.style.display = ['sales', 'admin'].includes(currentUser.role) ? 'flex' : 'none';
+            navEmployees.style.display = ['hr', 'admin'].includes(currentUser.role) ? 'flex' : 'none';
+        }
+
+        // Show section
+        function showSection(section) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+            
+            // Remove active class from nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            
+            // Show selected section
+            document.getElementById(`${section}Section`).style.display = 'block';
+            document.getElementById(`nav${section.charAt(0).toUpperCase() + section.slice(1)}`).classList.add('active');
+            
+            // Load data
+            if (section === 'users' && currentUser.role === 'admin') {
+                loadUsers();
+            } else if (section === 'customers' && ['sales', 'admin'].includes(currentUser.role)) {
+                loadCustomers();
+            } else if (section === 'employees' && ['hr', 'admin'].includes(currentUser.role)) {
+                loadEmployees();
+            }
+        }
+
+        // Load Users
+        async function loadUsers() {
+            try {
+                const users = await apiCall('/users');
+                const tbody = document.getElementById('usersTable');
+                tbody.innerHTML = '';
+                
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td>${user.full_name}</td>
+                        <td>${getRoleText(user.role)}</td>
+                        <td>${user.department || '-'}</td>
+                        <td>
+                            <button class="btn btn-primary" onclick="editUser(${user.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteUser(${user.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                showAlert('usersAlert', error.message, 'error');
+            }
+        }
+
+        // Load Customers
+        async function loadCustomers() {
+            try {
+                const customers = await apiCall('/customers');
+                const tbody = document.getElementById('customersTable');
+                tbody.innerHTML = '';
+                
+                customers.forEach(customer => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${customer.customer_name}</td>
+                        <td>${customer.company_name || '-'}</td>
+                        <td>${customer.email || '-'}</td>
+                        <td>${customer.phone || '-'}</td>
+                        <td><span class="status-badge status-${customer.status}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
+                        <td>
+                            <button class="btn btn-primary" onclick="editCustomer(${customer.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteCustomer(${customer.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                showAlert('customersAlert', error.message, 'error');
+            }
+        }
+
+        // Load Employees
+        async function loadEmployees() {
+            try {
+                const employees = await apiCall('/employees');
+                const tbody = document.getElementById('employeesTable');
+                tbody.innerHTML = '';
+                
+                employees.forEach(employee => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${employee.employee_id}</td>
+                        <td>${employee.first_name} ${employee.last_name}</td>
+                        <td>${employee.email || '-'}</td>
+                        <td>${employee.position || '-'}</td>
+                        <td>${employee.department || '-'}</td>
+                        <td><span class="status-badge status-${employee.status}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
+                        <td>
+                            <button class="btn btn-primary" onclick="editEmployee(${employee.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteEmployee(${employee.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                showAlert('employeesAlert', error.message, 'error');
+            }
+        }
+
+        // User CRUD Operations
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                username: document.getElementById('userUsername').value,
+                email: document.getElementById('userEmail').value,
+                password: document.getElementById('userPassword').value,
+                role: document.getElementById('userRole').value,
+                full_name: document.getElementById('userFullName').value,
+                phone: document.getElementById('userPhone').value,
+                department: document.getElementById('userDepartment').value
+            };
+            
+            try {
+                if (currentEditId) {
+                    await apiCall(`/users/${currentEditId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(formData)
+                    });
+                    showAlert('usersAlert', 'อัปเดตผู้ใช้งานสำเร็จ', 'success');
+                } else {
+                    await apiCall('/users', {
+                        method: 'POST',
+                        body: JSON.stringify(formData)
+                    });
+                    showAlert('usersAlert', 'เพิ่มผู้ใช้งานสำเร็จ', 'success');
+                }
+                
+                closeModal('userModal');
+                loadUsers();
+            } catch (error) {
+                showAlert('usersAlert', error.message, 'error');
+            }
+        });
+
+        async function editUser(id) {
+            try {
+                const users = await apiCall('/users');
+                const user = users.find(u => u.id === id);
+                
+                if (user) {
+                    currentEditId = id;
+                    currentEditType = 'user';
+                    
+                    document.getElementById('userModalTitle').textContent = 'แก้ไขผู้ใช้งาน';
+                    document.getElementById('userUsername').value = user.username;
+                    document.getElementById('userEmail').value = user.email;
+                    document.getElementById('userPassword').value = '';
+                    document.getElementById('userRole').value = user.role;
+                    document.getElementById('userFullName').value = user.full_name;
+                    document.getElementById('userPhone').value = user.phone || '';
+                    document.getElementById('userDepartment').value = user.department || '';
+                    
+                    document.getElementById('userPassword').required = false;
+                    openModal('userModal');
+                }
+            } catch (error) {
+                showAlert('usersAlert', error.message, 'error');
+            }
+        }
+
+        async function deleteUser(id) {
+            if (confirm('คุณต้องการลบผู้ใช้งานนี้หรือไม่?')) {
+                try {
+                    await apiCall(`/users/${id}`, { method: 'DELETE' });
+                    showAlert('usersAlert', 'ลบผู้ใช้งานสำเร็จ', 'success');
+                    loadUsers();
+                } catch (error) {
+                    showAlert('usersAlert', error.message, 'error');
+                }
+            }
+        }
+
+        // Customer CRUD Operations
+        document.getElementById('customerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                customer_name: document.getElementById('customerName').value,
+                company_name: document.getElementById('companyName').value,
+                email: document.getElementById('customerEmail').value,
+                phone: document.getElementById('customerPhone').value,
+                address: document.getElementById('customerAddress').value,
+                contact_person: document.getElementById('contactPerson').value,
+                status: document.getElementById('customerStatus').value
+            };
+            
+            try {
+                if (currentEditId) {
+                    await apiCall(`/customers/${currentEditId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(formData)
+                    });
+                    showAlert('customersAlert', 'อัปเดตลูกค้าสำเร็จ', 'success');
+                } else {
+                    await apiCall('/customers', {
+                        method: 'POST',
+                        body: JSON.stringify(formData)
+                    });
+                    showAlert('customersAlert', 'เพิ่มลูกค้าสำเร็จ', 'success');
+                }
+                
+                closeModal('customerModal');
+                loadCustomers();
+            } catch (error) {
+                showAlert('customersAlert', error.message, 'error');
+            }
+        });
+
+        async function editCustomer(id) {
+            try {
+                const customers = await apiCall('/customers');
+                const customer = customers.find(c => c.id === id);
+                
+                if (customer) {
+                    currentEditId = id;
+                    currentEditType = 'customer';
+                    
+                    document.getElementById('customerModalTitle').textContent = 'แก้ไขลูกค้า';
+                    document.getElementById('customerName').value = customer.customer_name;
+                    document.getElementById('companyName').value = customer.company_name || '';
+                    document.getElementById('customerEmail').value = customer.email || '';
+                    document.getElementById('customerPhone').value = customer.phone || '';
+                    document.getElementById('customerAddress').value = customer.address || '';
+                    document.getElementById('contactPerson').value = customer.contact_person || '';
+                    document.getElementById('customerStatus').value = customer.status;
+                    
+                    openModal('customerModal');
+                }
+            } catch (error) {
+                showAlert('customersAlert', error.message, 'error');
+            }
+        }
+
+        async function deleteCustomer(id) {
+            if (confirm('คุณต้องการลบลูกค้านี้หรือไม่?')) {
+                try {
+                    await apiCall(`/customers/${id}`, { method: 'DELETE' });
+                    showAlert('customersAlert', 'ลบลูกค้าสำเร็จ', 'success');
+                    loadCustomers();
+                } catch (error) {
+                    showAlert('customersAlert', error.message, 'error');
+                }
+            }
+        }
+
+        // Employee CRUD Operations
+        document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                employee_id: document.getElementById('employeeId').value,
+                first_name: document.getElementById('firstName').value,
+                last_name: document.getElementById('lastName').value,
+                email: document.getElementById('employeeEmail').value,
+                phone: document.getElementById('employeePhone').value,
+                position: document.getElementById('position').value,
+                department: document.getElementById('employeeDepartment').value,
+                salary: document.getElementById('salary').value,
+                hire_date: document.getElementById('hireDate').value,
+                status: document.getElementById('employeeStatus').value
+            };
+            
+            try {
+                if (currentEditId) {
+                    await apiCall(`/employees/${currentEditId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(formData)
+                    });
+                    showAlert('employeesAlert', 'อัปเดตพนักงานสำเร็จ', 'success');
+                } else {
+                    await apiCall('/employees', {
+                        method: 'POST',
+                        body: JSON.stringify(formData)
+                    });
+                    showAlert('employeesAlert', 'เพิ่มพนักงานสำเร็จ', 'success');
+                }
+                
+                closeModal('employeeModal');
+                loadEmployees();
+            } catch (error) {
+                showAlert('employeesAlert', error.message, 'error');
+            }
+        });
+
+        async function editEmployee(id) {
+            try {
+                const employees = await apiCall('/employees');
+                const employee = employees.find(e => e.id === id);
+                
+                if (employee) {
+                    currentEditId = id;
+                    currentEditType = 'employee';
+                    
+                    document.getElementById('employeeModalTitle').textContent = 'แก้ไขพนักงาน';
+                    document.getElementById('employeeId').value = employee.employee_id;
+                    document.getElementById('firstName').value = employee.first_name;
+                    document.getElementById('lastName').value = employee.last_name;
+                    document.getElementById('employeeEmail').value = employee.email || '';
+                    document.getElementById('employeePhone').value = employee.phone || '';
+                    document.getElementById('position').value = employee.position || '';
+                    document.getElementById('employeeDepartment').value = employee.department || '';
+                    document.getElementById('salary').value = employee.salary || '';
+                    document.getElementById('hireDate').value = employee.hire_date || '';
+                    document.getElementById('employeeStatus').value = employee.status;
+                    
+                    openModal('employeeModal');
+                }
+            } catch (error) {
+                showAlert('employeesAlert', error.message, 'error');
+            }
+        }
+
+        async function deleteEmployee(id) {
+            if (confirm('คุณต้องการลบพนักงานนี้หรือไม่?')) {
+                try {
+                    await apiCall(`/employees/${id}`, { method: 'DELETE' });
+                    showAlert('employeesAlert', 'ลบพนักงานสำเร็จ', 'success');
+                    loadEmployees();
+                } catch (error) {
+                    showAlert('employeesAlert', error.message, 'error');
+                }
+            }
+        }
+
+        // Utility functions
+        function getRoleText(role) {
+            const roles = {
+                'admin': 'แอดมิน',
+                'sales': 'ฝ่ายขาย',
+                'hr': 'ฝ่ายบุคคล'
+            };
+            return roles[role] || role;
+        }
+
+        function showAlert(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            currentEditId = null;
+            currentEditType = null;
+            
+            // Reset forms
+            document.getElementById('userForm').reset();
+            document.getElementById('customerForm').reset();
+            document.getElementById('employeeForm').reset();
+            
+            // Reset modal titles
+            document.getElementById('userModalTitle').textContent = 'เพิ่มผู้ใช้งาน';
+            document.getElementById('customerModalTitle').textContent = 'เพิ่มลูกค้า';
+            document.getElementById('employeeModalTitle').textContent = 'เพิ่มพนักงาน';
+            
+            // Reset password requirement
+            document.getElementById('userPassword').required = true;
+        }
+
+        function logout() {
+            removeToken();
+            currentUser = null;
+            document.getElementById('loginContainer').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+
+        // Check if user is already logged in
+        window.addEventListener('load', async () => {
+            const token = getToken();
+            if (token) {
+                try {
+                    const user = await apiCall('/me');
+                    currentUser = user;
+                    document.getElementById('loginContainer').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'block';
+                    initializeApp();
+                } catch (error) {
+                    removeToken();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
