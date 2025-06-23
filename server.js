@@ -6,6 +6,10 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+app.use(cors({
+  origin: 'https://user-management-system-7ln.pages.dev/',  // Cloudflare Pages URL
+  credentials: true
+}));
 const path = require('path');
 require('dotenv').config();
 
