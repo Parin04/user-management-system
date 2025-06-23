@@ -6,18 +6,37 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-app.use(cors({
-  origin: 'https://user-management-system-7ln.pages.dev/',  // Cloudflare Pages URL
-  credentials: true
-}));
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// CORS Configuration - Fixed to handle both local and production
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'https://user-management-system-7ln.pages.dev',
+            'http://localhost:3000',
+            'http://127.0.0.1:3000'
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -28,6 +47,7 @@ const pool = new Pool({
     database: process.env.DB_NAME || 'user_management',
     password: process.env.DB_PASSWORD || 'password',
     port: process.env.DB_PORT || 5432,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 // JWT Secret
@@ -61,6 +81,11 @@ const authorize = (roles) => {
     };
 };
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 // Routes
 
 // หน้าหลัก
@@ -72,6 +97,10 @@ app.get('/', (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password required' });
+        }
         
         const result = await pool.query(
             'SELECT * FROM users WHERE username = $1',
@@ -110,7 +139,7 @@ app.post('/api/login', async (req, res) => {
             }
         });
     } catch (err) {
-        console.error(err);
+        console.error('Login error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -129,7 +158,7 @@ app.get('/api/users', authenticateToken, authorize(['admin']), async (req, res) 
         );
         res.json(result.rows);
     } catch (err) {
-        console.error(err);
+        console.error('Get users error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -138,6 +167,10 @@ app.get('/api/users', authenticateToken, authorize(['admin']), async (req, res) 
 app.post('/api/users', authenticateToken, authorize(['admin']), async (req, res) => {
     try {
         const { username, email, password, role, full_name, phone, department } = req.body;
+        
+        if (!username || !email || !password || !role || !full_name) {
+            return res.status(400).json({ error: 'Required fields missing' });
+        }
         
         const hashedPassword = await bcrypt.hash(password, 10);
         
@@ -148,7 +181,7 @@ app.post('/api/users', authenticateToken, authorize(['admin']), async (req, res)
         
         res.status(201).json(result.rows[0]);
     } catch (err) {
-        console.error(err);
+        console.error('Create user error:', err);
         if (err.code === '23505') {
             res.status(400).json({ error: 'Username or email already exists' });
         } else {
@@ -161,12 +194,20 @@ app.post('/api/users', authenticateToken, authorize(['admin']), async (req, res)
 app.put('/api/users/:id', authenticateToken, authorize(['admin']), async (req, res) => {
     try {
         const { id } = req.params;
-        const { username, email, role, full_name, phone, department } = req.body;
+        const { username, email, role, full_name, phone, department, password } = req.body;
         
-        const result = await pool.query(
-            'UPDATE users SET username = $1, email = $2, role = $3, full_name = $4, phone = $5, department = $6 WHERE id = $7 RETURNING id, username, email, role, full_name, phone, department',
-            [username, email, role, full_name, phone, department, id]
-        );
+        let query, values;
+        
+        if (password) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            query = 'UPDATE users SET username = $1, email = $2, role = $3, full_name = $4, phone = $5, department = $6, password = $7 WHERE id = $8 RETURNING id, username, email, role, full_name, phone, department';
+            values = [username, email, role, full_name, phone, department, hashedPassword, id];
+        } else {
+            query = 'UPDATE users SET username = $1, email = $2, role = $3, full_name = $4, phone = $5, department = $6 WHERE id = $7 RETURNING id, username, email, role, full_name, phone, department';
+            values = [username, email, role, full_name, phone, department, id];
+        }
+        
+        const result = await pool.query(query, values);
         
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
@@ -174,8 +215,12 @@ app.put('/api/users/:id', authenticateToken, authorize(['admin']), async (req, r
         
         res.json(result.rows[0]);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        console.error('Update user error:', err);
+        if (err.code === '23505') {
+            res.status(400).json({ error: 'Username or email already exists' });
+        } else {
+            res.status(500).json({ error: 'Server error' });
+        }
     }
 });
 
@@ -192,7 +237,7 @@ app.delete('/api/users/:id', authenticateToken, authorize(['admin']), async (req
         
         res.json({ message: 'User deleted successfully' });
     } catch (err) {
-        console.error(err);
+        console.error('Delete user error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -206,7 +251,7 @@ app.get('/api/customers', authenticateToken, authorize(['sales', 'admin']), asyn
         );
         res.json(result.rows);
     } catch (err) {
-        console.error(err);
+        console.error('Get customers error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -216,6 +261,10 @@ app.post('/api/customers', authenticateToken, authorize(['sales', 'admin']), asy
     try {
         const { customer_name, company_name, email, phone, address, contact_person, status } = req.body;
         
+        if (!customer_name) {
+            return res.status(400).json({ error: 'Customer name is required' });
+        }
+        
         const result = await pool.query(
             'INSERT INTO customers (customer_name, company_name, email, phone, address, contact_person, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
             [customer_name, company_name, email, phone, address, contact_person, status || 'active', req.user.id]
@@ -223,7 +272,7 @@ app.post('/api/customers', authenticateToken, authorize(['sales', 'admin']), asy
         
         res.status(201).json(result.rows[0]);
     } catch (err) {
-        console.error(err);
+        console.error('Create customer error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -245,7 +294,7 @@ app.put('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']), 
         
         res.json(result.rows[0]);
     } catch (err) {
-        console.error(err);
+        console.error('Update customer error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -263,7 +312,7 @@ app.delete('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']
         
         res.json({ message: 'Customer deleted successfully' });
     } catch (err) {
-        console.error(err);
+        console.error('Delete customer error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -277,7 +326,7 @@ app.get('/api/employees', authenticateToken, authorize(['hr', 'admin']), async (
         );
         res.json(result.rows);
     } catch (err) {
-        console.error(err);
+        console.error('Get employees error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -287,6 +336,10 @@ app.post('/api/employees', authenticateToken, authorize(['hr', 'admin']), async 
     try {
         const { employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status } = req.body;
         
+        if (!employee_id || !first_name || !last_name) {
+            return res.status(400).json({ error: 'Employee ID, first name, and last name are required' });
+        }
+        
         const result = await pool.query(
             'INSERT INTO employees (employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
             [employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status || 'active', req.user.id]
@@ -294,7 +347,7 @@ app.post('/api/employees', authenticateToken, authorize(['hr', 'admin']), async 
         
         res.status(201).json(result.rows[0]);
     } catch (err) {
-        console.error(err);
+        console.error('Create employee error:', err);
         if (err.code === '23505') {
             res.status(400).json({ error: 'Employee ID or email already exists' });
         } else {
@@ -320,8 +373,12 @@ app.put('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), asy
         
         res.json(result.rows[0]);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        console.error('Update employee error:', err);
+        if (err.code === '23505') {
+            res.status(400).json({ error: 'Employee ID or email already exists' });
+        } else {
+            res.status(500).json({ error: 'Server error' });
+        }
     }
 });
 
@@ -338,11 +395,23 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
         
         res.json({ message: 'Employee deleted successfully' });
     } catch (err) {
-        console.error(err);
+        console.error('Delete employee error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+    res.status(404).json({ error: 'Route not found' });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
