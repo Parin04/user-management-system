@@ -22,6 +22,7 @@ console.log('   DATABASE_URL type:', typeof process.env.DATABASE_URL);
 
 if (process.env.DATABASE_URL) {
     console.log('   DATABASE_URL starts with postgres:', process.env.DATABASE_URL.startsWith('postgres://'));
+    console.log('   DATABASE_URL starts with postgresql:', process.env.DATABASE_URL.startsWith('postgresql://'));
     console.log('   DATABASE_URL preview:', process.env.DATABASE_URL.substring(0, 50) + '...');
 } else {
     console.log('   DATABASE_URL is:', process.env.DATABASE_URL);
@@ -31,19 +32,33 @@ console.log('   DB_USER:', process.env.DB_USER || 'not set');
 console.log('   DB_HOST:', process.env.DB_HOST || 'not set');
 console.log('   NODE_ENV:', process.env.NODE_ENV || 'development');
 
-// Database connection - รองรับทั้ง Local และ Render
+// Database connection - รองรับทั้ง postgres:// และ postgresql://
 let pool;
 
 try {
-    if (process.env.DATABASE_URL && process.env.DATABASE_URL.length > 10 && process.env.DATABASE_URL.startsWith('postgres://')) {
+    // เช็คว่ามี DATABASE_URL และเป็น postgres หรือ postgresql URL
+    const hasValidDatabaseUrl = process.env.DATABASE_URL && 
+                               process.env.DATABASE_URL.length > 10 && 
+                               (process.env.DATABASE_URL.startsWith('postgres://') || 
+                                process.env.DATABASE_URL.startsWith('postgresql://'));
+
+    if (hasValidDatabaseUrl) {
         // สำหรับ Render (Production)
         console.log('🌐 Using Render PostgreSQL (DATABASE_URL)');
+        
+        // แปลง postgresql:// เป็น postgres:// ถ้าจำเป็น
+        let connectionString = process.env.DATABASE_URL;
+        if (connectionString.startsWith('postgresql://')) {
+            connectionString = connectionString.replace('postgresql://', 'postgres://');
+            console.log('🔄 Converted postgresql:// to postgres://');
+        }
+        
         pool = new Pool({
-            connectionString: process.env.DATABASE_URL,
+            connectionString: connectionString,
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         });
     } else {
-        // สำหรับ Local Development (Docker หรือ Local PostgreSQL)
+        // สำหรับ Local Development
         console.log('🏠 Using Local PostgreSQL (Individual Env Vars)');
         
         if (!process.env.DB_PASSWORD && !process.env.DATABASE_URL) {
