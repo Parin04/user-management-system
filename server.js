@@ -344,11 +344,14 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
         res.status(500).json({ error: 'Server error' });
     }
 });
-// เพิ่มที่ท้ายไฟล์ server.js ก่อน app.listen()
 
+// app.listen(PORT, () => {
+//     console.log(`Server running on port ${PORT}`);
+// });
+
+// ให้เหลือแค่ startServer function นี้เท่านั้น
 const { initializeDatabase } = require('./init-db');
 
-// Initialize database and start server
 async function startServer() {
     try {
         await initializeDatabase();
@@ -362,7 +365,3 @@ async function startServer() {
 }
 
 startServer();
-
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
