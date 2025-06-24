@@ -1,6 +1,7 @@
+
 const express = require('express');
 const { Pool } = require('pg');
-const bcrypt = require('bcryptjs'); // เปลี่ยนเป็น bcryptjs
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
@@ -12,232 +13,19 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-// Debug Environment Variables
-console.log('🔍 Debug Environment Variables:');
-console.log('   DATABASE_URL exists:', !!process.env.DATABASE_URL);
-console.log('   DATABASE_URL length:', process.env.DATABASE_URL ? process.env.DATABASE_URL.length : 0);
-console.log('   DATABASE_URL type:', typeof process.env.DATABASE_URL);
-
-if (process.env.DATABASE_URL) {
-    console.log('   DATABASE_URL starts with postgres:', process.env.DATABASE_URL.startsWith('postgres://'));
-    console.log('   DATABASE_URL starts with postgresql:', process.env.DATABASE_URL.startsWith('postgresql://'));
-    console.log('   DATABASE_URL preview:', process.env.DATABASE_URL.substring(0, 50) + '...');
-} else {
-    console.log('   DATABASE_URL is:', process.env.DATABASE_URL);
-}
-
-console.log('   DB_USER:', process.env.DB_USER || 'not set');
-console.log('   DB_HOST:', process.env.DB_HOST || 'not set');
-console.log('   NODE_ENV:', process.env.NODE_ENV || 'development');
-
-// Database connection - รองรับทั้ง postgres:// และ postgresql://
-let pool;
-
-try {
-    // เช็คว่ามี DATABASE_URL และเป็น postgres หรือ postgresql URL
-    const hasValidDatabaseUrl = process.env.DATABASE_URL && 
-                               process.env.DATABASE_URL.length > 10 && 
-                               (process.env.DATABASE_URL.startsWith('postgres://') || 
-                                process.env.DATABASE_URL.startsWith('postgresql://'));
-
-    if (hasValidDatabaseUrl) {
-        // สำหรับ Render (Production)
-        console.log('🌐 Using Render PostgreSQL (DATABASE_URL)');
-        
-        // แปลง postgresql:// เป็น postgres:// ถ้าจำเป็น
-        let connectionString = process.env.DATABASE_URL;
-        if (connectionString.startsWith('postgresql://')) {
-            connectionString = connectionString.replace('postgresql://', 'postgres://');
-            console.log('🔄 Converted postgresql:// to postgres://');
-        }
-        
-        pool = new Pool({
-            connectionString: connectionString,
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-        });
-    } else {
-        // สำหรับ Local Development
-        console.log('🏠 Using Local PostgreSQL (Individual Env Vars)');
-        
-        if (!process.env.DB_PASSWORD && !process.env.DATABASE_URL) {
-            console.error('❌ No database configuration found!');
-            console.error('   Please set either DATABASE_URL or DB_USER/DB_PASSWORD');
-            process.exit(1);
-        }
-        
-        pool = new Pool({
-            user: process.env.DB_USER || 'postgres',
-            host: process.env.DB_HOST || 'localhost',
-            database: process.env.DB_NAME || 'user_management',
-            password: process.env.DB_PASSWORD || 'password',
-            port: process.env.DB_PORT || 5432,
-        });
-    }
-} catch (error) {
-    console.error('❌ Database pool creation failed:', error);
-    console.error('❌ DATABASE_URL value:', process.env.DATABASE_URL);
-    process.exit(1);
-}
-
-// Test database connection
-pool.on('connect', () => {
-    console.log('✅ Connected to PostgreSQL database');
+// Database connection
+const pool = new Pool({
+    user: process.env.DB_USER || 'postgres',
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'user_management',
+    password: process.env.DB_PASSWORD ,
+    port: process.env.DB_PORT || 5432,
 });
-
-pool.on('error', (err) => {
-    console.error('❌ Database connection error:', err);
-});
-
-// Initialize database on startup
-async function initializeDatabase() {
-    let client;
-    try {
-        console.log('🔄 Initializing database...');
-        client = await pool.connect();
-        console.log('✅ Database client connected successfully');
-        
-        // Create tables
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(100) UNIQUE NOT NULL,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL,
-                role VARCHAR(20) CHECK (role IN ('admin', 'sales', 'hr')) NOT NULL,
-                full_name VARCHAR(255) NOT NULL,
-                phone VARCHAR(20),
-                department VARCHAR(100),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS customers (
-                id SERIAL PRIMARY KEY,
-                customer_name VARCHAR(255) NOT NULL,
-                company_name VARCHAR(255),
-                email VARCHAR(255),
-                phone VARCHAR(20),
-                address TEXT,
-                contact_person VARCHAR(255),
-                status VARCHAR(20) DEFAULT 'active',
-                created_by INTEGER REFERENCES users(id),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS employees (
-                id SERIAL PRIMARY KEY,
-                employee_id VARCHAR(20) UNIQUE NOT NULL,
-                first_name VARCHAR(255) NOT NULL,
-                last_name VARCHAR(255) NOT NULL,
-                email VARCHAR(255) UNIQUE,
-                phone VARCHAR(20),
-                position VARCHAR(100),
-                department VARCHAR(100),
-                salary DECIMAL(10,2),
-                hire_date DATE,
-                status VARCHAR(20) DEFAULT 'active',
-                created_by INTEGER REFERENCES users(id),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        // Create trigger function
-        await client.query(`
-            CREATE OR REPLACE FUNCTION update_updated_at_column()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                NEW.updated_at = CURRENT_TIMESTAMP;
-                RETURN NEW;
-            END;
-            $$ language 'plpgsql';
-        `);
-
-        // Create triggers
-        const tables = ['users', 'customers', 'employees'];
-        for (const table of tables) {
-            await client.query(`
-                DROP TRIGGER IF EXISTS update_${table}_updated_at ON ${table};
-                CREATE TRIGGER update_${table}_updated_at 
-                    BEFORE UPDATE ON ${table} 
-                    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-            `);
-        }
-
-        console.log('✅ Database tables created/verified');
-
-        // Check if admin user exists
-        const adminCheck = await client.query('SELECT id FROM users WHERE username = $1', ['admin']);
-        
-        if (adminCheck.rows.length === 0) {
-            console.log('🔄 Creating default users...');
-            
-            // Create default users
-            const adminPassword = await bcrypt.hash('admin123', 10);
-            const salesPassword = await bcrypt.hash('sales123', 10);
-            const hrPassword = await bcrypt.hash('hr123', 10);
-
-            await client.query(`
-                INSERT INTO users (username, email, password, role, full_name, department) VALUES 
-                ('admin', 'admin@company.com', $1, 'admin', 'ผู้ดูแลระบบ', 'IT'),
-                ('sales01', 'sales@company.com', $2, 'sales', 'พนักงานขาย', 'Sales'),
-                ('hr01', 'hr@company.com', $3, 'hr', 'พนักงานบุคคล', 'HR')
-            `, [adminPassword, salesPassword, hrPassword]);
-
-            console.log('✅ Default users created successfully');
-
-            // Create sample data
-            const adminUser = await client.query('SELECT id FROM users WHERE username = $1', ['admin']);
-            const adminId = adminUser.rows[0].id;
-
-            // Insert sample customers
-            await client.query(`
-                INSERT INTO customers (customer_name, company_name, email, phone, address, contact_person, created_by) VALUES 
-                ('บริษัท ABC จำกัด', 'ABC Company Ltd.', 'contact@abc.com', '02-123-4567', '123 ถนนสุขุมวิท กรุงเทพฯ', 'คุณสมชาย', $1),
-                ('ร้านค้าปลีก XYZ', 'XYZ Retail', 'info@xyz.com', '02-987-6543', '456 ถนนรัชดาภิเษก กรุงเทพฯ', 'คุณสมหญิง', $1)
-            `, [adminId]);
-
-            // Insert sample employees
-            await client.query(`
-                INSERT INTO employees (employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, created_by) VALUES 
-                ('EMP001', 'สมชาย', 'ใจดี', 'somchai@company.com', '081-234-5678', 'นักพัฒนา', 'IT', 45000.00, '2024-01-15', $1),
-                ('EMP002', 'สมหญิง', 'ขยัน', 'somying@company.com', '081-987-6543', 'นักการตลาด', 'Marketing', 40000.00, '2024-02-01', $1)
-            `, [adminId]);
-
-            console.log('✅ Sample data created successfully');
-            console.log('📋 Login credentials:');
-            console.log('   🔐 Admin: admin / admin123');
-            console.log('   💼 Sales: sales01 / sales123');
-            console.log('   👥 HR: hr01 / hr123');
-        } else {
-            console.log('ℹ️ Default users already exist');
-        }
-
-        console.log('✅ Database initialization completed');
-    } catch (error) {
-        console.error('❌ Database initialization failed:', error);
-        console.error('❌ Error details:', {
-            message: error.message,
-            code: error.code,
-            detail: error.detail
-        });
-        throw error;
-    } finally {
-        if (client) {
-            client.release();
-        }
-    }
-}
 
 // JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'my-super-secret-jwt-key-2024';
 
 // Auth Middleware
 const authenticateToken = (req, res, next) => {
@@ -274,37 +62,10 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Health check
-app.get('/api/health', async (req, res) => {
-    try {
-        const client = await pool.connect();
-        await client.query('SELECT 1');
-        client.release();
-        
-        res.json({ 
-            status: 'OK', 
-            timestamp: new Date().toISOString(),
-            environment: process.env.NODE_ENV || 'development',
-            database: 'Connected'
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            status: 'ERROR', 
-            timestamp: new Date().toISOString(),
-            database: 'Disconnected',
-            error: error.message
-        });
-    }
-});
-
 // Login
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password required' });
-        }
         
         const result = await pool.query(
             'SELECT * FROM users WHERE username = $1',
@@ -343,7 +104,7 @@ app.post('/api/login', async (req, res) => {
             }
         });
     } catch (err) {
-        console.error('Login error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -354,6 +115,7 @@ app.get('/api/me', authenticateToken, (req, res) => {
 });
 
 // === ADMIN ROUTES (Users Management) ===
+// Get all users
 app.get('/api/users', authenticateToken, authorize(['admin']), async (req, res) => {
     try {
         const result = await pool.query(
@@ -361,18 +123,15 @@ app.get('/api/users', authenticateToken, authorize(['admin']), async (req, res) 
         );
         res.json(result.rows);
     } catch (err) {
-        console.error('Get users error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
+// Create user
 app.post('/api/users', authenticateToken, authorize(['admin']), async (req, res) => {
     try {
         const { username, email, password, role, full_name, phone, department } = req.body;
-        
-        if (!username || !email || !password || !role || !full_name) {
-            return res.status(400).json({ error: 'Required fields missing' });
-        }
         
         const hashedPassword = await bcrypt.hash(password, 10);
         
@@ -383,7 +142,7 @@ app.post('/api/users', authenticateToken, authorize(['admin']), async (req, res)
         
         res.status(201).json(result.rows[0]);
     } catch (err) {
-        console.error('Create user error:', err);
+        console.error(err);
         if (err.code === '23505') {
             res.status(400).json({ error: 'Username or email already exists' });
         } else {
@@ -392,23 +151,16 @@ app.post('/api/users', authenticateToken, authorize(['admin']), async (req, res)
     }
 });
 
+// Update user
 app.put('/api/users/:id', authenticateToken, authorize(['admin']), async (req, res) => {
     try {
         const { id } = req.params;
-        const { username, email, role, full_name, phone, department, password } = req.body;
+        const { username, email, role, full_name, phone, department } = req.body;
         
-        let query, values;
-        
-        if (password) {
-            const hashedPassword = await bcrypt.hash(password, 10);
-            query = 'UPDATE users SET username = $1, email = $2, role = $3, full_name = $4, phone = $5, department = $6, password = $7 WHERE id = $8 RETURNING id, username, email, role, full_name, phone, department';
-            values = [username, email, role, full_name, phone, department, hashedPassword, id];
-        } else {
-            query = 'UPDATE users SET username = $1, email = $2, role = $3, full_name = $4, phone = $5, department = $6 WHERE id = $7 RETURNING id, username, email, role, full_name, phone, department';
-            values = [username, email, role, full_name, phone, department, id];
-        }
-        
-        const result = await pool.query(query, values);
+        const result = await pool.query(
+            'UPDATE users SET username = $1, email = $2, role = $3, full_name = $4, phone = $5, department = $6 WHERE id = $7 RETURNING id, username, email, role, full_name, phone, department',
+            [username, email, role, full_name, phone, department, id]
+        );
         
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
@@ -416,14 +168,16 @@ app.put('/api/users/:id', authenticateToken, authorize(['admin']), async (req, r
         
         res.json(result.rows[0]);
     } catch (err) {
-        console.error('Update user error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
+// Delete user
 app.delete('/api/users/:id', authenticateToken, authorize(['admin']), async (req, res) => {
     try {
         const { id } = req.params;
+        
         const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
         
         if (result.rowCount === 0) {
@@ -432,12 +186,13 @@ app.delete('/api/users/:id', authenticateToken, authorize(['admin']), async (req
         
         res.json({ message: 'User deleted successfully' });
     } catch (err) {
-        console.error('Delete user error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
 // === SALES ROUTES (Customers Management) ===
+// Get all customers
 app.get('/api/customers', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
         const result = await pool.query(
@@ -445,18 +200,15 @@ app.get('/api/customers', authenticateToken, authorize(['sales', 'admin']), asyn
         );
         res.json(result.rows);
     } catch (err) {
-        console.error('Get customers error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
+// Create customer
 app.post('/api/customers', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
         const { customer_name, company_name, email, phone, address, contact_person, status } = req.body;
-        
-        if (!customer_name) {
-            return res.status(400).json({ error: 'Customer name is required' });
-        }
         
         const result = await pool.query(
             'INSERT INTO customers (customer_name, company_name, email, phone, address, contact_person, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
@@ -465,11 +217,12 @@ app.post('/api/customers', authenticateToken, authorize(['sales', 'admin']), asy
         
         res.status(201).json(result.rows[0]);
     } catch (err) {
-        console.error('Create customer error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
+// Update customer
 app.put('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
         const { id } = req.params;
@@ -486,14 +239,16 @@ app.put('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']), 
         
         res.json(result.rows[0]);
     } catch (err) {
-        console.error('Update customer error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
+// Delete customer
 app.delete('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
         const { id } = req.params;
+        
         const result = await pool.query('DELETE FROM customers WHERE id = $1', [id]);
         
         if (result.rowCount === 0) {
@@ -502,12 +257,13 @@ app.delete('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']
         
         res.json({ message: 'Customer deleted successfully' });
     } catch (err) {
-        console.error('Delete customer error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
 // === HR ROUTES (Employees Management) ===
+// Get all employees
 app.get('/api/employees', authenticateToken, authorize(['hr', 'admin']), async (req, res) => {
     try {
         const result = await pool.query(
@@ -515,18 +271,15 @@ app.get('/api/employees', authenticateToken, authorize(['hr', 'admin']), async (
         );
         res.json(result.rows);
     } catch (err) {
-        console.error('Get employees error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
+// Create employee
 app.post('/api/employees', authenticateToken, authorize(['hr', 'admin']), async (req, res) => {
     try {
         const { employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status } = req.body;
-        
-        if (!employee_id || !first_name || !last_name) {
-            return res.status(400).json({ error: 'Employee ID, first name, and last name are required' });
-        }
         
         const result = await pool.query(
             'INSERT INTO employees (employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
@@ -535,7 +288,7 @@ app.post('/api/employees', authenticateToken, authorize(['hr', 'admin']), async 
         
         res.status(201).json(result.rows[0]);
     } catch (err) {
-        console.error('Create employee error:', err);
+        console.error(err);
         if (err.code === '23505') {
             res.status(400).json({ error: 'Employee ID or email already exists' });
         } else {
@@ -544,6 +297,7 @@ app.post('/api/employees', authenticateToken, authorize(['hr', 'admin']), async 
     }
 });
 
+// Update employee
 app.put('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), async (req, res) => {
     try {
         const { id } = req.params;
@@ -560,14 +314,16 @@ app.put('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), asy
         
         res.json(result.rows[0]);
     } catch (err) {
-        console.error('Update employee error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
+// Delete employee
 app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), async (req, res) => {
     try {
         const { id } = req.params;
+        
         const result = await pool.query('DELETE FROM employees WHERE id = $1', [id]);
         
         if (result.rowCount === 0) {
@@ -576,64 +332,11 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
         
         res.json({ message: 'Employee deleted successfully' });
     } catch (err) {
-        console.error('Delete employee error:', err);
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
-
-// 404 handler
-app.use('*', (req, res) => {
-    res.status(404).json({ error: 'Route not found' });
-});
-
-// Initialize database and start server
-async function startServer() {
-    try {
-        console.log('🚀 Starting User Management System...');
-        console.log('📊 Environment Variables:');
-        console.log('   DATABASE_URL:', !!process.env.DATABASE_URL);
-        console.log('   DB_USER:', process.env.DB_USER || 'not set');
-        console.log('   DB_HOST:', process.env.DB_HOST || 'not set');
-        console.log('   NODE_ENV:', process.env.NODE_ENV || 'development');
-        
-        await initializeDatabase();
-        
-        const server = app.listen(PORT, '0.0.0.0', () => {
-            console.log('🎉 ================================');
-            console.log('🚀 Server started successfully!');
-            console.log('📡 Port:', PORT);
-            console.log('🌐 Environment:', process.env.NODE_ENV || 'development');
-            console.log('🔗 URL: http://localhost:' + PORT);
-            console.log('🔐 Login: admin / admin123');
-            console.log('🎉 ================================');
-        });
-
-        // Graceful shutdown
-        process.on('SIGTERM', () => {
-            console.log('SIGTERM received, shutting down gracefully');
-            server.close(() => {
-                console.log('Process terminated');
-                pool.end();
-            });
-        });
-        
-    } catch (error) {
-        console.error('❌ Failed to start server:', error);
-        console.error('❌ Error details:', {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-        });
-        process.exit(1);
-    }
-}
-
-startServer();
-
-module.exports = app;
