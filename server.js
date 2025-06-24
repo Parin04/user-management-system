@@ -17,12 +17,19 @@ app.use(express.static('public'));
 
 // Database connection
 const pool = new Pool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  database: process.env.DB_NAME,
+  connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: false
+  } : false
 });
+
+// const pool = new Pool({
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PASSWORD,
+//   host: process.env.DB_HOST,
+//   port: Number(process.env.DB_PORT),
+//   database: process.env.DB_NAME,
+// });
 
 
 // JWT Secret
@@ -337,6 +344,24 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
         res.status(500).json({ error: 'Server error' });
     }
 });
+// เพิ่มที่ท้ายไฟล์ server.js ก่อน app.listen()
+
+const { initializeDatabase } = require('./init-db');
+
+// Initialize database and start server
+async function startServer() {
+    try {
+        await initializeDatabase();
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+startServer();
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
