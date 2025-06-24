@@ -685,7 +685,7 @@
             const password = document.getElementById('password').value;
             
             try {
-                const data = await apiCall('/api/login', {
+                const data = await apiCall('/login', {
                     method: 'POST',
                     body: JSON.stringify({ username, password })
                 });
