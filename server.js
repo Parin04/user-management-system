@@ -16,13 +16,21 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Database connection
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+//   ssl: process.env.NODE_ENV === 'production' ? {
+//     rejectUnauthorized: false
+//   } : false
+// });
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
-  ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: false
-  } : false
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  database: process.env.DB_NAME,
+  // ลบ SSL ออกเพราะเชื่อมต่อ local
+  ssl: false
 });
-
 // const pool = new Pool({
 //   user: process.env.DB_USER,
 //   password: process.env.DB_PASSWORD,
@@ -345,23 +353,23 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
     }
 });
 
-// app.listen(PORT, () => {
-//     console.log(`Server running on port ${PORT}`);
-// });
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
 
 // ให้เหลือแค่ startServer function นี้เท่านั้น
-const { initializeDatabase } = require('./init-db');
+// const { initializeDatabase } = require('./init-db');
 
-async function startServer() {
-    try {
-        await initializeDatabase();
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
-    } catch (error) {
-        console.error('Failed to start server:', error);
-        process.exit(1);
-    }
-}
+// async function startServer() {
+//     try {
+//         await initializeDatabase();
+//         app.listen(PORT, () => {
+//             console.log(`Server running on port ${PORT}`);
+//         });
+//     } catch (error) {
+//         console.error('Failed to start server:', error);
+//         process.exit(1);
+//     }
+// }
 
-startServer();
+// startServer();
