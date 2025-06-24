@@ -1,6 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs'); // เปลี่ยนเป็น bcryptjs
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
@@ -14,26 +14,56 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Debug Environment Variables
+console.log('🔍 Debug Environment Variables:');
+console.log('   DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('   DATABASE_URL length:', process.env.DATABASE_URL ? process.env.DATABASE_URL.length : 0);
+console.log('   DATABASE_URL type:', typeof process.env.DATABASE_URL);
+
+if (process.env.DATABASE_URL) {
+    console.log('   DATABASE_URL starts with postgres:', process.env.DATABASE_URL.startsWith('postgres://'));
+    console.log('   DATABASE_URL preview:', process.env.DATABASE_URL.substring(0, 50) + '...');
+} else {
+    console.log('   DATABASE_URL is:', process.env.DATABASE_URL);
+}
+
+console.log('   DB_USER:', process.env.DB_USER || 'not set');
+console.log('   DB_HOST:', process.env.DB_HOST || 'not set');
+console.log('   NODE_ENV:', process.env.NODE_ENV || 'development');
+
 // Database connection - รองรับทั้ง Local และ Render
 let pool;
 
-if (process.env.DATABASE_URL) {
-    // สำหรับ Render (Production)
-    console.log('🌐 Using Render PostgreSQL (DATABASE_URL)');
-    pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
-} else {
-    // สำหรับ Local Development (Docker หรือ Local PostgreSQL)
-    console.log('🏠 Using Local PostgreSQL (Individual Env Vars)');
-    pool = new Pool({
-        user: process.env.DB_USER || 'postgres',
-        host: process.env.DB_HOST || 'localhost',
-        database: process.env.DB_NAME || 'user_management',
-        password: process.env.DB_PASSWORD || 'password',
-        port: process.env.DB_PORT || 5432,
-    });
+try {
+    if (process.env.DATABASE_URL && process.env.DATABASE_URL.length > 10 && process.env.DATABASE_URL.startsWith('postgres://')) {
+        // สำหรับ Render (Production)
+        console.log('🌐 Using Render PostgreSQL (DATABASE_URL)');
+        pool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        });
+    } else {
+        // สำหรับ Local Development (Docker หรือ Local PostgreSQL)
+        console.log('🏠 Using Local PostgreSQL (Individual Env Vars)');
+        
+        if (!process.env.DB_PASSWORD && !process.env.DATABASE_URL) {
+            console.error('❌ No database configuration found!');
+            console.error('   Please set either DATABASE_URL or DB_USER/DB_PASSWORD');
+            process.exit(1);
+        }
+        
+        pool = new Pool({
+            user: process.env.DB_USER || 'postgres',
+            host: process.env.DB_HOST || 'localhost',
+            database: process.env.DB_NAME || 'user_management',
+            password: process.env.DB_PASSWORD || 'password',
+            port: process.env.DB_PORT || 5432,
+        });
+    }
+} catch (error) {
+    console.error('❌ Database pool creation failed:', error);
+    console.error('❌ DATABASE_URL value:', process.env.DATABASE_URL);
+    process.exit(1);
 }
 
 // Test database connection
@@ -47,9 +77,11 @@ pool.on('error', (err) => {
 
 // Initialize database on startup
 async function initializeDatabase() {
-    const client = await pool.connect();
+    let client;
     try {
         console.log('🔄 Initializing database...');
+        client = await pool.connect();
+        console.log('✅ Database client connected successfully');
         
         // Create tables
         await client.query(`
@@ -176,9 +208,16 @@ async function initializeDatabase() {
         console.log('✅ Database initialization completed');
     } catch (error) {
         console.error('❌ Database initialization failed:', error);
+        console.error('❌ Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail
+        });
         throw error;
     } finally {
-        client.release();
+        if (client) {
+            client.release();
+        }
     }
 }
 
