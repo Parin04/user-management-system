@@ -14,6 +14,103 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+// เพิ่มส่วนนี้หลังจาก app.use(express.static('public'));
+
+// Health check route
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        service: 'User Management System',
+        port: PORT,
+        node_env: process.env.NODE_ENV
+    });
+});
+
+// API status route
+app.get('/api', (req, res) => {
+    res.json({ 
+        message: 'User Management API is running',
+        version: '1.0.0',
+        database: {
+            host: process.env.DB_HOST,
+            port: process.env.DB_PORT,
+            database: process.env.DB_NAME,
+            user: process.env.DB_USER
+        },
+        endpoints: {
+            'POST /api/login': 'User login',
+            'GET /api/users': 'Get all users (admin only)',
+            'GET /api/customers': 'Get all customers (sales/admin)',
+            'GET /api/employees': 'Get all employees (hr/admin)'
+        }
+    });
+});
+
+// Database test route
+app.get('/api/test-db', async (req, res) => {
+    try {
+        console.log('Testing database connection...');
+        console.log('DB Config:', {
+            host: process.env.DB_HOST,
+            port: process.env.DB_PORT,
+            database: process.env.DB_NAME,
+            user: process.env.DB_USER
+        });
+        
+        const result = await pool.query('SELECT NOW() as current_time, version() as db_version');
+        
+        // ลองดู users table
+        let userCount = { rows: [{ count: 'N/A' }] };
+        try {
+            userCount = await pool.query('SELECT COUNT(*) FROM users');
+        } catch (userErr) {
+            console.log('Users table error:', userErr.message);
+        }
+        
+        res.json({ 
+            status: 'Database connected successfully',
+            connection: 'OK',
+            current_time: result.rows[0].current_time,
+            database_version: result.rows[0].db_version,
+            user_count: userCount.rows[0].count,
+            config: {
+                host: process.env.DB_HOST,
+                port: process.env.DB_PORT,
+                database: process.env.DB_NAME,
+                user: process.env.DB_USER
+            }
+        });
+    } catch (error) {
+        console.error('Database test error:', error);
+        res.status(500).json({ 
+            status: 'Database connection failed',
+            error: error.message,
+            code: error.code,
+            config: {
+                host: process.env.DB_HOST,
+                port: process.env.DB_PORT,
+                database: process.env.DB_NAME,
+                user: process.env.DB_USER
+            }
+        });
+    }
+});
+
+// Test login endpoint (GET version for testing)
+app.get('/api/login-test', (req, res) => {
+    res.json({ 
+        message: 'Login endpoint is working. Use POST method to login.',
+        method: 'POST',
+        url: '/api/login',
+        test_credentials: {
+            admin: { username: 'admin', password: 'admin123' },
+            sales: { username: 'sales01', password: 'sales123' },
+            hr: { username: 'hr01', password: 'hr123' }
+        },
+        example_curl: `curl -X POST ${req.protocol}://${req.get('host')}/api/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin123"}'`
+    });
+});
 
 // Database connection
 // const pool = new Pool({
