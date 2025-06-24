@@ -632,21 +632,17 @@
     </div>
 
     <script>
-            // Global variables
+        // Global variables
         let currentUser = null;
         let currentEditId = null;
         let currentEditType = null;
-        
-        // Use environment-based API URL
-        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'http://localhost:3000/api' 
-            : 'https://user-management-system-qcum.onrender.com/api';
+        const API_BASE = '/api';
 
         // Authentication
         function getToken() {
             return localStorage.getItem('token');
         }
-        
+
         function setToken(token) {
             localStorage.setItem('token', token);
         }
