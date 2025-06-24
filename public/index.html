@@ -29,6 +29,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            padding: 20px;
         }
 
         .login-box {
@@ -44,6 +45,7 @@
             text-align: center;
             margin-bottom: 30px;
             color: #333;
+            font-size: 1.5rem;
         }
 
         .main-app {
@@ -52,27 +54,54 @@
             border-radius: 10px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.1);
             overflow: hidden;
+            min-height: 100vh;
         }
 
         .header {
             background: #2c3e50;
             color: white;
-            padding: 20px;
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .user-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
+        .user-info span {
+            font-size: 0.9rem;
+        }
+
+        /* Mobile Navigation */
         .navbar {
             background: #34495e;
             padding: 0;
             display: flex;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .navbar::-webkit-scrollbar {
+            height: 3px;
+        }
+
+        .navbar::-webkit-scrollbar-thumb {
+            background: #2c3e50;
+            border-radius: 3px;
         }
 
         .nav-btn {
@@ -85,6 +114,9 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            white-space: nowrap;
+            min-width: max-content;
+            font-size: 0.9rem;
         }
 
         .nav-btn:hover, .nav-btn.active {
@@ -92,7 +124,7 @@
         }
 
         .content {
-            padding: 30px;
+            padding: 20px;
             min-height: 500px;
         }
 
@@ -105,6 +137,7 @@
             margin-bottom: 5px;
             font-weight: 600;
             color: #333;
+            font-size: 0.9rem;
         }
 
         .form-control {
@@ -122,7 +155,7 @@
         }
 
         .btn {
-            padding: 12px 24px;
+            padding: 10px 16px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
@@ -131,7 +164,10 @@
             transition: all 0.3s;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            text-align: center;
+            justify-content: center;
+            min-height: 40px;
         }
 
         .btn-primary {
@@ -170,36 +206,104 @@
             background: #7f8c8d;
         }
 
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+            min-height: 32px;
+        }
+
+        /* Responsive Table */
         .table-container {
             overflow-x: auto;
             margin-top: 20px;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
         .table {
             width: 100%;
             border-collapse: collapse;
             background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            min-width: 600px; /* Minimum width for horizontal scroll */
         }
 
         .table th {
             background: #f8f9fa;
-            padding: 15px;
+            padding: 12px 8px;
             text-align: left;
             font-weight: 600;
             color: #333;
             border-bottom: 2px solid #dee2e6;
+            font-size: 0.85rem;
+            white-space: nowrap;
         }
 
         .table td {
-            padding: 15px;
+            padding: 12px 8px;
             border-bottom: 1px solid #dee2e6;
+            font-size: 0.85rem;
+            word-break: break-word;
         }
 
         .table tr:hover {
             background: #f8f9fa;
+        }
+
+        .table .actions {
+            white-space: nowrap;
+        }
+
+        .table .actions .btn {
+            margin-right: 5px;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* Mobile Card Layout for Tables */
+        .mobile-cards {
+            display: none;
+        }
+
+        .mobile-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .mobile-card-header {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .mobile-card-body {
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .mobile-card-body .field {
+            margin-bottom: 8px;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .mobile-card-body .field-label {
+            font-weight: 600;
+            margin-right: 8px;
+            color: #666;
+            min-width: 80px;
+        }
+
+        .mobile-card-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
         .modal {
@@ -211,17 +315,21 @@
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.5);
+            padding: 20px;
         }
 
         .modal-content {
             background: white;
-            margin: 5% auto;
-            padding: 30px;
+            margin: 0 auto;
+            padding: 20px;
             border-radius: 10px;
-            width: 90%;
+            width: 100%;
             max-width: 600px;
-            max-height: 80vh;
+            max-height: 90vh;
             overflow-y: auto;
+            position: relative;
+            top: 50%;
+            transform: translateY(-50%);
         }
 
         .modal-header {
@@ -233,11 +341,18 @@
             border-bottom: 2px solid #eee;
         }
 
+        .modal-header h3 {
+            font-size: 1.1rem;
+        }
+
         .close {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: bold;
             cursor: pointer;
             color: #aaa;
+            background: none;
+            border: none;
+            padding: 5px;
         }
 
         .close:hover {
@@ -247,23 +362,27 @@
         .form-row {
             display: flex;
             gap: 15px;
+            flex-wrap: wrap;
         }
 
         .form-row .form-group {
             flex: 1;
+            min-width: 250px;
         }
 
         .actions {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .alert {
-            padding: 15px;
+            padding: 12px;
             margin-bottom: 20px;
             border-radius: 6px;
             font-weight: 500;
+            font-size: 0.9rem;
         }
 
         .alert-success {
@@ -279,11 +398,12 @@
         }
 
         .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
+            display: inline-block;
         }
 
         .status-active {
@@ -296,21 +416,153 @@
             color: #721c24;
         }
 
+        /* Mobile Responsive Styles */
         @media (max-width: 768px) {
-            .navbar {
-                flex-direction: column;
+            .container {
+                padding: 10px;
             }
-            
+
+            .login-container {
+                padding: 15px;
+            }
+
+            .login-box {
+                padding: 20px;
+            }
+
+            .login-box h2 {
+                font-size: 1.3rem;
+            }
+
+            .main-app {
+                border-radius: 0;
+                margin: 0;
+            }
+
+            .header {
+                padding: 10px 15px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .header h1 {
+                font-size: 1.1rem;
+            }
+
+            .user-info {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .content {
+                padding: 15px;
+            }
+
             .form-row {
                 flex-direction: column;
             }
-            
+
+            .form-row .form-group {
+                min-width: auto;
+            }
+
             .actions {
                 flex-direction: column;
             }
-            
-            .table-container {
-                font-size: 14px;
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            /* Hide table, show mobile cards */
+            .table-container .table {
+                display: none;
+            }
+
+            .mobile-cards {
+                display: block;
+            }
+
+            .modal {
+                padding: 10px;
+            }
+
+            .modal-content {
+                padding: 15px;
+                max-height: 95vh;
+            }
+
+            .modal-header h3 {
+                font-size: 1rem;
+            }
+
+            .close {
+                font-size: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 i {
+                display: none;
+            }
+
+            .nav-btn {
+                padding: 12px 15px;
+                font-size: 0.8rem;
+            }
+
+            .nav-btn i {
+                display: none;
+            }
+
+            .mobile-card {
+                padding: 12px;
+            }
+
+            .mobile-card-actions {
+                flex-direction: column;
+            }
+
+            .mobile-card-actions .btn {
+                width: 100%;
+            }
+
+            .form-control {
+                padding: 10px;
+            }
+
+            .btn {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+        }
+
+        /* Landscape orientation on mobile */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .header {
+                flex-direction: row;
+                align-items: center;
+            }
+
+            .user-info {
+                width: auto;
+            }
+        }
+
+        /* Very small screens */
+        @media (max-width: 320px) {
+            .login-box {
+                padding: 15px;
+            }
+
+            .content {
+                padding: 10px;
+            }
+
+            .modal-content {
+                padding: 10px;
             }
         }
     </style>
