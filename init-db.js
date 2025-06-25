@@ -91,6 +91,31 @@ async function initializeDatabase() {
             console.log('   Sales: sales01 / sales123');
             console.log('   HR: hr01 / hr123');
         }
+        // Create sample data
+        const customerCheck = await client.query('SELECT id FROM customers LIMIT 1');
+        if (customerCheck.rows.length === 0) {
+            console.log('🔄 กำลังสร้างข้อมูลตัวอย่าง...');
+            
+            // Get admin user ID
+            const adminUser = await client.query('SELECT id FROM users WHERE username = $1', ['admin']);
+            const adminId = adminUser.rows[0].id;
+
+            // Insert sample customers
+            await client.query(`
+                INSERT INTO customers (customer_name, company_name, email, phone, address, contact_person, created_by) VALUES 
+                ('บริษัท ABC จำกัด', 'ABC Company Ltd.', 'contact@abc.com', '02-123-4567', '123 ถนนสุขุมวิท กรุงเทพฯ', 'คุณสมชาย', $1),
+                ('ร้านค้าปลีก XYZ', 'XYZ Retail', 'info@xyz.com', '02-987-6543', '456 ถนนรัชดาภิเษก กรุงเทพฯ', 'คุณสมหญิง', $1)
+            `, [adminId]);
+
+            // Insert sample employees
+            await client.query(`
+                INSERT INTO employees (employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, created_by) VALUES 
+                ('EMP001', 'สมชาย', 'ใจดี', 'somchai@company.com', '081-234-5678', 'นักพัฒนา', 'IT', 45000.00, '2024-01-15', $1),
+                ('EMP002', 'สมหญิง', 'ขยัน', 'somying@company.com', '081-987-6543', 'นักการตลาด', 'Marketing', 40000.00, '2024-02-01', $1)
+            `, [adminId]);
+
+            console.log('✅ สร้างข้อมูลตัวอย่างสำเร็จ');
+        }
 
         console.log('🎉 ติดตั้งระบบเสร็จสิ้น!');
         
