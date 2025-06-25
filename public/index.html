@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,7 +37,7 @@
             background: white;
             padding: 40px;
             border-radius: 10px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
             width: 100%;
             max-width: 400px;
         }
@@ -52,7 +53,7 @@
             display: none;
             background: white;
             border-radius: 10px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
             overflow: hidden;
             min-height: 100vh;
         }
@@ -119,7 +120,8 @@
             font-size: 0.9rem;
         }
 
-        .nav-btn:hover, .nav-btn.active {
+        .nav-btn:hover,
+        .nav-btn.active {
             background: #2c3e50;
         }
 
@@ -218,14 +220,15 @@
             margin-top: 20px;
             -webkit-overflow-scrolling: touch;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .table {
             width: 100%;
             border-collapse: collapse;
             background: white;
-            min-width: 600px; /* Minimum width for horizontal scroll */
+            min-width: 600px;
+            /* Minimum width for horizontal scroll */
         }
 
         .table th {
@@ -270,7 +273,7 @@
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             border-left: 4px solid #667eea;
         }
 
@@ -314,7 +317,7 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             padding: 20px;
         }
 
@@ -567,6 +570,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Login Form -->
     <div id="loginContainer" class="login-container">
@@ -914,85 +918,159 @@
                 ...options
             };
 
+            console.log('🔍 API Call:', endpoint);
+            console.log('- Token exists:', !!token);
+            console.log('- Config:', config);
+
             try {
                 const response = await fetch(`${API_BASE}${endpoint}`, config);
                 const data = await response.json();
 
+                console.log('📡 API Response:', {
+                    status: response.status,
+                    ok: response.ok,
+                    endpoint: endpoint
+                });
+
                 if (!response.ok) {
+                    console.error('❌ API Error:', data);
                     throw new Error(data.error || 'เกิดข้อผิดพลาด');
                 }
 
+                console.log('✅ API Success:', endpoint);
                 return data;
             } catch (error) {
-                console.error('API Error:', error);
+                console.error('❌ API Error:', error);
                 throw error;
             }
         }
 
+
         // Login
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            
+
             try {
                 const data = await apiCall('/login', {
                     method: 'POST',
                     body: JSON.stringify({ username, password })
                 });
-                
+
                 setToken(data.token);
                 currentUser = data.user;
-                
+
                 document.getElementById('loginContainer').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
-                
+
                 initializeApp();
             } catch (error) {
                 showAlert('loginAlert', error.message, 'error');
             }
         });
 
-        // Initialize app
+        // แก้ไข initializeApp function
         async function initializeApp() {
             try {
+                console.log('🔍 Initializing app...');
+
                 const user = await apiCall('/me');
                 currentUser = user;
-                
+
+                console.log('✅ Current user:', currentUser);
+
                 document.getElementById('userInfo').textContent = `${user.full_name} (${getRoleText(user.role)})`;
-                
+
                 setupNavigation();
-                showSection('users');
+
+                // เลือก section เริ่มต้นตาม role
+                if (user.role === 'admin') {
+                    showSection('users');
+                } else if (user.role === 'sales') {
+                    showSection('customers');
+                } else if (user.role === 'hr') {
+                    showSection('employees');
+                }
+
             } catch (error) {
+                console.error('❌ App initialization failed:', error);
                 logout();
             }
         }
 
-        // Setup navigation based on user role
         function setupNavigation() {
+            console.log('🔍 Setting up navigation for role:', currentUser.role);
+
             const navUsers = document.getElementById('navUsers');
             const navCustomers = document.getElementById('navCustomers');
             const navEmployees = document.getElementById('navEmployees');
-            
-            navUsers.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
-            navCustomers.style.display = ['sales', 'admin'].includes(currentUser.role) ? 'flex' : 'none';
-            navEmployees.style.display = ['hr', 'admin'].includes(currentUser.role) ? 'flex' : 'none';
+
+            // แสดง/ซ่อน navigation ตาม role
+            if (currentUser.role === 'admin') {
+                navUsers.style.display = 'flex';
+                navCustomers.style.display = 'flex';
+                navEmployees.style.display = 'flex';
+                console.log('✅ Admin: All menus enabled');
+            } else if (currentUser.role === 'sales') {
+                navUsers.style.display = 'none';
+                navCustomers.style.display = 'flex';
+                navEmployees.style.display = 'none';
+                console.log('✅ Sales: Customers menu enabled');
+            } else if (currentUser.role === 'hr') {
+                navUsers.style.display = 'none';
+                navCustomers.style.display = 'none';
+                navEmployees.style.display = 'flex';
+                console.log('✅ HR: Employees menu enabled');
+            }
         }
 
-        // Show section
         function showSection(section) {
-            // Hide all sections
+            console.log('🔍 Showing section:', section, 'for role:', currentUser.role);
+
+            // ตรวจสอบสิทธิ์การเข้าถึง
+            if (section === 'users' && currentUser.role !== 'admin') {
+                console.warn('⚠️ Access denied to users section');
+                return;
+            }
+
+            if (section === 'customers' && !['sales', 'admin'].includes(currentUser.role)) {
+                console.warn('⚠️ Access denied to customers section');
+                return;
+            }
+
+            if (section === 'employees' && !['hr', 'admin'].includes(currentUser.role)) {
+                console.warn('⚠️ Access denied to employees section');
+                return;
+            }
+
+            // ซ่อนทุก section
             document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-            
-            // Remove active class from nav buttons
+
+            // ลบ active class จาก nav buttons
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            
-            // Show selected section
-            document.getElementById(`${section}Section`).style.display = 'block';
-            document.getElementById(`nav${section.charAt(0).toUpperCase() + section.slice(1)}`).classList.add('active');
-            
-            // Load data
+
+            // แสดง section ที่เลือก
+            const sectionElement = document.getElementById(`${section}Section`);
+            const navElement = document.getElementById(`nav${section.charAt(0).toUpperCase() + section.slice(1)}`);
+
+            if (sectionElement) {
+                sectionElement.style.display = 'block';
+                console.log('✅ Section displayed:', section);
+            }
+
+            if (navElement) {
+                navElement.classList.add('active');
+            }
+
+            // โหลดข้อมูล
+            loadSectionData(section);
+        }
+        // เพิ่ม function สำหรับโหลดข้อมูล
+        function loadSectionData(section) {
+            console.log('🔍 Loading data for section:', section);
+
             if (section === 'users' && currentUser.role === 'admin') {
                 loadUsers();
             } else if (section === 'customers' && ['sales', 'admin'].includes(currentUser.role)) {
@@ -1008,7 +1086,7 @@
                 const users = await apiCall('/users');
                 const tbody = document.getElementById('usersTable');
                 tbody.innerHTML = '';
-                
+
                 users.forEach(user => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -1035,71 +1113,186 @@
 
         // Load Customers
         async function loadCustomers() {
+            console.log('🔍 Loading customers...');
+
             try {
                 const customers = await apiCall('/customers');
+                console.log('✅ Customers loaded:', customers.length, 'records');
+
                 const tbody = document.getElementById('customersTable');
                 tbody.innerHTML = '';
-                
+
+                // สร้าง mobile cards container
+                let mobileCardsContainer = document.querySelector('#customersSection .mobile-cards');
+                if (!mobileCardsContainer) {
+                    mobileCardsContainer = document.createElement('div');
+                    mobileCardsContainer.className = 'mobile-cards';
+                    document.querySelector('#customersSection .table-container').appendChild(mobileCardsContainer);
+                }
+                mobileCardsContainer.innerHTML = '';
+
                 customers.forEach(customer => {
+                    // Table row
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>${customer.customer_name}</td>
-                        <td>${customer.company_name || '-'}</td>
-                        <td>${customer.email || '-'}</td>
-                        <td>${customer.phone || '-'}</td>
-                        <td><span class="status-badge status-${customer.status}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
-                        <td>
-                            <button class="btn btn-primary" onclick="editCustomer(${customer.id})">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-danger" onclick="deleteCustomer(${customer.id})">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
+                <td>${customer.customer_name}</td>
+                <td>${customer.company_name || '-'}</td>
+                <td>${customer.email || '-'}</td>
+                <td>${customer.phone || '-'}</td>
+                <td><span class="status-badge status-${customer.status}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
+                <td class="actions">
+                    <button class="btn btn-primary btn-sm" onclick="editCustomer(${customer.id})">
+                        <i class="fas fa-edit"></i> แก้ไข
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${customer.id})">
+                        <i class="fas fa-trash"></i> ลบ
+                    </button>
+                </td>
+            `;
                     tbody.appendChild(row);
+
+                    // Mobile card
+                    const card = document.createElement('div');
+                    card.className = 'mobile-card';
+                    card.innerHTML = `
+                <div class="mobile-card-header">${customer.customer_name}</div>
+                <div class="mobile-card-body">
+                    <div class="field">
+                        <span class="field-label">บริษัท:</span>
+                        <span>${customer.company_name || '-'}</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">อีเมล:</span>
+                        <span>${customer.email || '-'}</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">โทรศัพท์:</span>
+                        <span>${customer.phone || '-'}</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">สถานะ:</span>
+                        <span class="status-badge status-${customer.status}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
+                    </div>
+                </div>
+                <div class="mobile-card-actions">
+                    <button class="btn btn-primary btn-sm" onclick="editCustomer(${customer.id})">
+                        <i class="fas fa-edit"></i> แก้ไข
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${customer.id})">
+                        <i class="fas fa-trash"></i> ลบ
+                    </button>
+                </div>
+            `;
+                    mobileCardsContainer.appendChild(card);
                 });
+
             } catch (error) {
+                console.error('❌ Failed to load customers:', error);
                 showAlert('customersAlert', error.message, 'error');
             }
         }
 
         // Load Employees
         async function loadEmployees() {
+            console.log('🔍 Loading employees...');
+
             try {
                 const employees = await apiCall('/employees');
+                console.log('✅ Employees loaded:', employees.length, 'records');
+
                 const tbody = document.getElementById('employeesTable');
                 tbody.innerHTML = '';
-                
+
+                // สร้าง mobile cards container
+                let mobileCardsContainer = document.querySelector('#employeesSection .mobile-cards');
+                if (!mobileCardsContainer) {
+                    mobileCardsContainer = document.createElement('div');
+                    mobileCardsContainer.className = 'mobile-cards';
+                    document.querySelector('#employeesSection .table-container').appendChild(mobileCardsContainer);
+                }
+                mobileCardsContainer.innerHTML = '';
+
                 employees.forEach(employee => {
+                    // Table row
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>${employee.employee_id}</td>
-                        <td>${employee.first_name} ${employee.last_name}</td>
-                        <td>${employee.email || '-'}</td>
-                        <td>${employee.position || '-'}</td>
-                        <td>${employee.department || '-'}</td>
-                        <td><span class="status-badge status-${employee.status}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
-                        <td>
-                            <button class="btn btn-primary" onclick="editEmployee(${employee.id})">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-danger" onclick="deleteEmployee(${employee.id})">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
+                <td>${employee.employee_id}</td>
+                <td>${employee.first_name} ${employee.last_name}</td>
+                <td>${employee.email || '-'}</td>
+                <td>${employee.position || '-'}</td>
+                <td>${employee.department || '-'}</td>
+                <td><span class="status-badge status-${employee.status}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
+                <td class="actions">
+                    <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.id})">
+                        <i class="fas fa-edit"></i> แก้ไข
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${employee.id})">
+                        <i class="fas fa-trash"></i> ลบ
+                    </button>
+                </td>
+            `;
                     tbody.appendChild(row);
+
+                    // Mobile card
+                    const card = document.createElement('div');
+                    card.className = 'mobile-card';
+                    card.innerHTML = `
+                <div class="mobile-card-header">${employee.first_name} ${employee.last_name}</div>
+                <div class="mobile-card-body">
+                    <div class="field">
+                        <span class="field-label">รหัส:</span>
+                        <span>${employee.employee_id}</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">อีเมล:</span>
+                        <span>${employee.email || '-'}</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">ตำแหน่ง:</span>
+                        <span>${employee.position || '-'}</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">แผนก:</span>
+                        <span>${employee.department || '-'}</span>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">สถานะ:</span>
+                        <span class="status-badge status-${employee.status}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
+                    </div>
+                </div>
+                <div class="mobile-card-actions">
+                    <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.id})">
+                        <i class="fas fa-edit"></i> แก้ไข
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${employee.id})">
+                        <i class="fas fa-trash"></i> ลบ
+                    </button>
+                </div>
+            `;
+                    mobileCardsContainer.appendChild(card);
                 });
+
             } catch (error) {
+                console.error('❌ Failed to load employees:', error);
                 showAlert('employeesAlert', error.message, 'error');
             }
         }
 
+        // เพิ่ม function สำหรับ debug
+        function debugCurrentUser() {
+            console.log('🔍 Debug Current User:');
+            console.log('- currentUser:', currentUser);
+            console.log('- token:', getToken());
+            console.log('- localStorage:', localStorage.getItem('token'));
+        }
+
+        // เรียกใช้ debug function ใน console
+        window.debugCurrentUser = debugCurrentUser;
+
         // User CRUD Operations
         document.getElementById('userForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const formData = {
                 username: document.getElementById('userUsername').value,
                 email: document.getElementById('userEmail').value,
@@ -1109,7 +1302,7 @@
                 phone: document.getElementById('userPhone').value,
                 department: document.getElementById('userDepartment').value
             };
-            
+
             try {
                 if (currentEditId) {
                     await apiCall(`/users/${currentEditId}`, {
@@ -1124,7 +1317,7 @@
                     });
                     showAlert('usersAlert', 'เพิ่มผู้ใช้งานสำเร็จ', 'success');
                 }
-                
+
                 closeModal('userModal');
                 loadUsers();
             } catch (error) {
@@ -1136,11 +1329,11 @@
             try {
                 const users = await apiCall('/users');
                 const user = users.find(u => u.id === id);
-                
+
                 if (user) {
                     currentEditId = id;
                     currentEditType = 'user';
-                    
+
                     document.getElementById('userModalTitle').textContent = 'แก้ไขผู้ใช้งาน';
                     document.getElementById('userUsername').value = user.username;
                     document.getElementById('userEmail').value = user.email;
@@ -1149,7 +1342,7 @@
                     document.getElementById('userFullName').value = user.full_name;
                     document.getElementById('userPhone').value = user.phone || '';
                     document.getElementById('userDepartment').value = user.department || '';
-                    
+
                     document.getElementById('userPassword').required = false;
                     openModal('userModal');
                 }
@@ -1173,7 +1366,7 @@
         // Customer CRUD Operations
         document.getElementById('customerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const formData = {
                 customer_name: document.getElementById('customerName').value,
                 company_name: document.getElementById('companyName').value,
@@ -1183,7 +1376,7 @@
                 contact_person: document.getElementById('contactPerson').value,
                 status: document.getElementById('customerStatus').value
             };
-            
+
             try {
                 if (currentEditId) {
                     await apiCall(`/customers/${currentEditId}`, {
@@ -1198,7 +1391,7 @@
                     });
                     showAlert('customersAlert', 'เพิ่มลูกค้าสำเร็จ', 'success');
                 }
-                
+
                 closeModal('customerModal');
                 loadCustomers();
             } catch (error) {
@@ -1210,11 +1403,11 @@
             try {
                 const customers = await apiCall('/customers');
                 const customer = customers.find(c => c.id === id);
-                
+
                 if (customer) {
                     currentEditId = id;
                     currentEditType = 'customer';
-                    
+
                     document.getElementById('customerModalTitle').textContent = 'แก้ไขลูกค้า';
                     document.getElementById('customerName').value = customer.customer_name;
                     document.getElementById('companyName').value = customer.company_name || '';
@@ -1223,7 +1416,7 @@
                     document.getElementById('customerAddress').value = customer.address || '';
                     document.getElementById('contactPerson').value = customer.contact_person || '';
                     document.getElementById('customerStatus').value = customer.status;
-                    
+
                     openModal('customerModal');
                 }
             } catch (error) {
@@ -1246,7 +1439,7 @@
         // Employee CRUD Operations
         document.getElementById('employeeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const formData = {
                 employee_id: document.getElementById('employeeId').value,
                 first_name: document.getElementById('firstName').value,
@@ -1259,7 +1452,7 @@
                 hire_date: document.getElementById('hireDate').value,
                 status: document.getElementById('employeeStatus').value
             };
-            
+
             try {
                 if (currentEditId) {
                     await apiCall(`/employees/${currentEditId}`, {
@@ -1274,7 +1467,7 @@
                     });
                     showAlert('employeesAlert', 'เพิ่มพนักงานสำเร็จ', 'success');
                 }
-                
+
                 closeModal('employeeModal');
                 loadEmployees();
             } catch (error) {
@@ -1286,11 +1479,11 @@
             try {
                 const employees = await apiCall('/employees');
                 const employee = employees.find(e => e.id === id);
-                
+
                 if (employee) {
                     currentEditId = id;
                     currentEditType = 'employee';
-                    
+
                     document.getElementById('employeeModalTitle').textContent = 'แก้ไขพนักงาน';
                     document.getElementById('employeeId').value = employee.employee_id;
                     document.getElementById('firstName').value = employee.first_name;
@@ -1302,7 +1495,7 @@
                     document.getElementById('salary').value = employee.salary || '';
                     document.getElementById('hireDate').value = employee.hire_date || '';
                     document.getElementById('employeeStatus').value = employee.status;
-                    
+
                     openModal('employeeModal');
                 }
             } catch (error) {
@@ -1348,17 +1541,17 @@
             document.getElementById(modalId).style.display = 'none';
             currentEditId = null;
             currentEditType = null;
-            
+
             // Reset forms
             document.getElementById('userForm').reset();
             document.getElementById('customerForm').reset();
             document.getElementById('employeeForm').reset();
-            
+
             // Reset modal titles
             document.getElementById('userModalTitle').textContent = 'เพิ่มผู้ใช้งาน';
             document.getElementById('customerModalTitle').textContent = 'เพิ่มลูกค้า';
             document.getElementById('employeeModalTitle').textContent = 'เพิ่มพนักงาน';
-            
+
             // Reset password requirement
             document.getElementById('userPassword').required = true;
         }
@@ -1371,7 +1564,7 @@
         }
 
         // Close modal when clicking outside
-        window.onclick = function(event) {
+        window.onclick = function (event) {
             const modals = document.querySelectorAll('.modal');
             modals.forEach(modal => {
                 if (event.target === modal) {
@@ -1397,4 +1590,5 @@
         });
     </script>
 </body>
+
 </html>

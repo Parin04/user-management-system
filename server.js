@@ -40,30 +40,59 @@ const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
+    console.log('🔍 Token verification:');
+    console.log('- Auth header:', authHeader);
+    console.log('- Token exists:', !!token);
+
     if (!token) {
         return res.status(401).json({ error: 'Access token required' });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
+            console.log('❌ Token verification failed:', err.message);
             return res.status(403).json({ error: 'Invalid token' });
         }
+        
+        console.log('✅ Token verified for user:', user);
         req.user = user;
         next();
     });
 };
 
-// Role-based access control
+
 const authorize = (roles) => {
     return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({ error: 'Insufficient permissions' });
+        console.log('🔍 Authorization check:');
+        console.log('- User role:', req.user.role);
+        console.log('- Required roles:', roles);
+        console.log('- User object:', req.user);
+        
+        if (!req.user.role) {
+            console.log('❌ No role found in user object');
+            return res.status(403).json({ error: 'No role found' });
         }
+        
+        if (!roles.includes(req.user.role)) {
+            console.log('❌ Access denied for role:', req.user.role);
+            return res.status(403).json({ 
+                error: 'Insufficient permissions',
+                userRole: req.user.role,
+                requiredRoles: roles
+            });
+        }
+        
+        console.log('✅ Authorization passed');
         next();
     };
 };
-
-// Routes
+// 3. เพิ่ม Debug Endpoint (ลบออกหลังแก้ปัญหาแล้ว)
+app.get('/api/debug/auth', authenticateToken, (req, res) => {
+    res.json({
+        user: req.user,
+        timestamp: new Date().toISOString()
+    });
+});
 
 // หน้าหลัก
 app.get('/', (req, res) => {
@@ -75,32 +104,40 @@ app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         
+        console.log('🔍 Login attempt:', username);
+        
         const result = await pool.query(
             'SELECT * FROM users WHERE username = $1',
             [username]
         );
 
         if (result.rows.length === 0) {
+            console.log('❌ User not found:', username);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         const user = result.rows[0];
+        console.log('✅ User found:', { id: user.id, username: user.username, role: user.role });
+        
         const validPassword = await bcrypt.compare(password, user.password);
 
         if (!validPassword) {
+            console.log('❌ Invalid password for:', username);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        const token = jwt.sign(
-            { 
-                id: user.id, 
-                username: user.username, 
-                role: user.role,
-                full_name: user.full_name
-            },
-            JWT_SECRET,
-            { expiresIn: '8h' }
-        );
+        const tokenPayload = { 
+            id: user.id, 
+            username: user.username, 
+            role: user.role,
+            full_name: user.full_name
+        };
+        
+        console.log('🔍 Creating token with payload:', tokenPayload);
+        
+        const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '8h' });
+
+        console.log('✅ Login successful for:', username, 'role:', user.role);
 
         res.json({
             token,
@@ -112,7 +149,7 @@ app.post('/api/login', async (req, res) => {
             }
         });
     } catch (err) {
-        console.error(err);
+        console.error('❌ Login error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -203,12 +240,16 @@ app.delete('/api/users/:id', authenticateToken, authorize(['admin']), async (req
 // Get all customers
 app.get('/api/customers', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
+        console.log('🔍 Customers API called by:', req.user.username, 'role:', req.user.role);
+        
         const result = await pool.query(
             'SELECT c.*, u.full_name as created_by_name FROM customers c LEFT JOIN users u ON c.created_by = u.id ORDER BY c.created_at DESC'
         );
+        
+        console.log('✅ Customers data retrieved:', result.rows.length, 'records');
         res.json(result.rows);
     } catch (err) {
-        console.error(err);
+        console.error('❌ Customers API error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -271,15 +312,18 @@ app.delete('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']
 });
 
 // === HR ROUTES (Employees Management) ===
-// Get all employees
 app.get('/api/employees', authenticateToken, authorize(['hr', 'admin']), async (req, res) => {
     try {
+        console.log('🔍 Employees API called by:', req.user.username, 'role:', req.user.role);
+        
         const result = await pool.query(
             'SELECT e.*, u.full_name as created_by_name FROM employees e LEFT JOIN users u ON e.created_by = u.id ORDER BY e.created_at DESC'
         );
+        
+        console.log('✅ Employees data retrieved:', result.rows.length, 'records');
         res.json(result.rows);
     } catch (err) {
-        console.error(err);
+        console.error('❌ Employees API error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
