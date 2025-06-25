@@ -1176,34 +1176,42 @@
         }
 
         // Load Customers
-        async function loadCustomers() {
-            console.log('🔍 Loading customers...');
-
-            try {
-                const customers = await apiCall('/customers');
-                console.log('✅ Customers loaded:', customers.length, 'records');
-
-                const tbody = document.getElementById('customersTable');
-                tbody.innerHTML = '';
-
-                // สร้าง mobile cards container
-                let mobileCardsContainer = document.querySelector('#customersSection .mobile-cards');
-                if (!mobileCardsContainer) {
-                    mobileCardsContainer = document.createElement('div');
-                    mobileCardsContainer.className = 'mobile-cards';
-                    document.querySelector('#customersSection .table-container').appendChild(mobileCardsContainer);
-                }
-                mobileCardsContainer.innerHTML = '';
-
-                customers.forEach(customer => {
-                    // Table row
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                <td>${customer.customer_name}</td>
+// แก้ไข loadCustomers function
+async function loadCustomers() {
+    console.log('🔍 Loading customers...');
+    
+    try {
+        const customers = await apiCall('/customers');
+        console.log('✅ Customers loaded:', customers.length, 'records');
+        
+        const tbody = document.getElementById('customersTable');
+        tbody.innerHTML = '';
+        
+        // สร้าง mobile cards container ถ้ายังไม่มี
+        let mobileCardsContainer = document.querySelector('#customersSection .mobile-cards');
+        if (!mobileCardsContainer) {
+            mobileCardsContainer = document.createElement('div');
+            mobileCardsContainer.className = 'mobile-cards';
+            document.querySelector('#customersSection .table-container').appendChild(mobileCardsContainer);
+        }
+        mobileCardsContainer.innerHTML = '';
+        
+        if (customers.length === 0) {
+            // แสดงข้อความเมื่อไม่มีข้อมูล
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</td></tr>';
+            mobileCardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</div>';
+            return;
+        }
+        
+        customers.forEach(customer => {
+            // Table row
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${customer.customer_name || '-'}</td>
                 <td>${customer.company_name || '-'}</td>
                 <td>${customer.email || '-'}</td>
                 <td>${customer.phone || '-'}</td>
-                <td><span class="status-badge status-${customer.status}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
+                <td><span class="status-badge status-${customer.status || 'active'}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
                 <td class="actions">
                     <button class="btn btn-primary btn-sm" onclick="editCustomer(${customer.id})">
                         <i class="fas fa-edit"></i> แก้ไข
@@ -1213,13 +1221,13 @@
                     </button>
                 </td>
             `;
-                    tbody.appendChild(row);
-
-                    // Mobile card
-                    const card = document.createElement('div');
-                    card.className = 'mobile-card';
-                    card.innerHTML = `
-                <div class="mobile-card-header">${customer.customer_name}</div>
+            tbody.appendChild(row);
+            
+            // Mobile card
+            const card = document.createElement('div');
+            card.className = 'mobile-card';
+            card.innerHTML = `
+                <div class="mobile-card-header">${customer.customer_name || 'ไม่ระบุชื่อ'}</div>
                 <div class="mobile-card-body">
                     <div class="field">
                         <span class="field-label">บริษัท:</span>
@@ -1235,7 +1243,7 @@
                     </div>
                     <div class="field">
                         <span class="field-label">สถานะ:</span>
-                        <span class="status-badge status-${customer.status}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
+                        <span class="status-badge status-${customer.status || 'active'}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
                     </div>
                 </div>
                 <div class="mobile-card-actions">
@@ -1247,45 +1255,53 @@
                     </button>
                 </div>
             `;
-                    mobileCardsContainer.appendChild(card);
-                });
-
-            } catch (error) {
-                console.error('❌ Failed to load customers:', error);
-                showAlert('customersAlert', error.message, 'error');
-            }
-        }
+            mobileCardsContainer.appendChild(card);
+        });
+        
+    } catch (error) {
+        console.error('❌ Failed to load customers:', error);
+        showAlert('customersAlert', error.message, 'error');
+    }
+}
 
         // Load Employees
-        async function loadEmployees() {
-            console.log('🔍 Loading employees...');
-
-            try {
-                const employees = await apiCall('/employees');
-                console.log('✅ Employees loaded:', employees.length, 'records');
-
-                const tbody = document.getElementById('employeesTable');
-                tbody.innerHTML = '';
-
-                // สร้าง mobile cards container
-                let mobileCardsContainer = document.querySelector('#employeesSection .mobile-cards');
-                if (!mobileCardsContainer) {
-                    mobileCardsContainer = document.createElement('div');
-                    mobileCardsContainer.className = 'mobile-cards';
-                    document.querySelector('#employeesSection .table-container').appendChild(mobileCardsContainer);
-                }
-                mobileCardsContainer.innerHTML = '';
-
-                employees.forEach(employee => {
-                    // Table row
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                <td>${employee.employee_id}</td>
-                <td>${employee.first_name} ${employee.last_name}</td>
+       // แก้ไข loadEmployees function
+async function loadEmployees() {
+    console.log('🔍 Loading employees...');
+    
+    try {
+        const employees = await apiCall('/employees');
+        console.log('✅ Employees loaded:', employees.length, 'records');
+        
+        const tbody = document.getElementById('employeesTable');
+        tbody.innerHTML = '';
+        
+        // สร้าง mobile cards container ถ้ายังไม่มี
+        let mobileCardsContainer = document.querySelector('#employeesSection .mobile-cards');
+        if (!mobileCardsContainer) {
+            mobileCardsContainer = document.createElement('div');
+            mobileCardsContainer.className = 'mobile-cards';
+            document.querySelector('#employeesSection .table-container').appendChild(mobileCardsContainer);
+        }
+        mobileCardsContainer.innerHTML = '';
+        
+        if (employees.length === 0) {
+            // แสดงข้อความเมื่อไม่มีข้อมูล
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลพนักงาน</td></tr>';
+            mobileCardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลพนักงาน</div>';
+            return;
+        }
+        
+        employees.forEach(employee => {
+            // Table row
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${employee.employee_id || '-'}</td>
+                <td>${(employee.first_name || '') + ' ' + (employee.last_name || '')}</td>
                 <td>${employee.email || '-'}</td>
                 <td>${employee.position || '-'}</td>
                 <td>${employee.department || '-'}</td>
-                <td><span class="status-badge status-${employee.status}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
+                <td><span class="status-badge status-${employee.status || 'active'}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
                 <td class="actions">
                     <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.id})">
                         <i class="fas fa-edit"></i> แก้ไข
@@ -1295,17 +1311,17 @@
                     </button>
                 </td>
             `;
-                    tbody.appendChild(row);
-
-                    // Mobile card
-                    const card = document.createElement('div');
-                    card.className = 'mobile-card';
-                    card.innerHTML = `
-                <div class="mobile-card-header">${employee.first_name} ${employee.last_name}</div>
+            tbody.appendChild(row);
+            
+            // Mobile card
+            const card = document.createElement('div');
+            card.className = 'mobile-card';
+            card.innerHTML = `
+                <div class="mobile-card-header">${(employee.first_name || '') + ' ' + (employee.last_name || '')}</div>
                 <div class="mobile-card-body">
                     <div class="field">
                         <span class="field-label">รหัส:</span>
-                        <span>${employee.employee_id}</span>
+                        <span>${employee.employee_id || '-'}</span>
                     </div>
                     <div class="field">
                         <span class="field-label">อีเมล:</span>
@@ -1321,7 +1337,7 @@
                     </div>
                     <div class="field">
                         <span class="field-label">สถานะ:</span>
-                        <span class="status-badge status-${employee.status}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
+                        <span class="status-badge status-${employee.status || 'active'}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
                     </div>
                 </div>
                 <div class="mobile-card-actions">
@@ -1333,14 +1349,19 @@
                     </button>
                 </div>
             `;
-                    mobileCardsContainer.appendChild(card);
-                });
+            mobileCardsContainer.appendChild(card);
+        });
+        
+    } catch (error) {
+        console.error('❌ Failed to load employees:', error);
+        showAlert('employeesAlert', error.message, 'error');
+        
+        // แสดงข้อความ error ในตาราง
+        const tbody = document.getElementById('employeesTable');
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #e74c3c;">เกิดข้อผิดพลาด: ${error.message}</td></tr>`;
+    }
+}
 
-            } catch (error) {
-                console.error('❌ Failed to load employees:', error);
-                showAlert('employeesAlert', error.message, 'error');
-            }
-        }
 
         // เพิ่ม function สำหรับ debug
         function debugCurrentUser() {
@@ -1427,157 +1448,202 @@
             }
         }
 
-        // Customer CRUD Operations
-        document.getElementById('customerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+       // แก้ไข Customer Form Submission
+document.getElementById('customerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = {
+        customer_name: document.getElementById('customerName').value.trim(),
+        company_name: document.getElementById('companyName').value.trim(),
+        email: document.getElementById('customerEmail').value.trim(),
+        phone: document.getElementById('customerPhone').value.trim(),
+        address: document.getElementById('customerAddress').value.trim(),
+        contact_person: document.getElementById('contactPerson').value.trim(),
+        status: document.getElementById('customerStatus').value
+    };
+    
+    // Validation
+    if (!formData.customer_name) {
+        showAlert('customersAlert', 'กรุณากรอกชื่อลูกค้า', 'error');
+        return;
+    }
+    
+    try {
+        console.log('🔍 Submitting customer form:', formData);
+        
+        if (currentEditId) {
+            const result = await apiCall(`/customers/${currentEditId}`, {
+                method: 'PUT',
+                body: JSON.stringify(formData)
+            });
+            console.log('✅ Customer updated:', result);
+            showAlert('customersAlert', 'อัปเดตลูกค้าสำเร็จ', 'success');
+        } else {
+            const result = await apiCall('/customers', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+            console.log('✅ Customer created:', result);
+            showAlert('customersAlert', 'เพิ่มลูกค้าสำเร็จ', 'success');
+        }
+        
+        closeModal('customerModal');
+        loadCustomers();
+    } catch (error) {
+        console.error('❌ Customer form submission error:', error);
+        showAlert('customersAlert', error.message, 'error');
+    }
+});
 
-            const formData = {
-                customer_name: document.getElementById('customerName').value,
-                company_name: document.getElementById('companyName').value,
-                email: document.getElementById('customerEmail').value,
-                phone: document.getElementById('customerPhone').value,
-                address: document.getElementById('customerAddress').value,
-                contact_person: document.getElementById('contactPerson').value,
-                status: document.getElementById('customerStatus').value
-            };
-
-            try {
-                if (currentEditId) {
-                    await apiCall(`/customers/${currentEditId}`, {
-                        method: 'PUT',
-                        body: JSON.stringify(formData)
-                    });
-                    showAlert('customersAlert', 'อัปเดตลูกค้าสำเร็จ', 'success');
-                } else {
-                    await apiCall('/customers', {
-                        method: 'POST',
-                        body: JSON.stringify(formData)
-                    });
-                    showAlert('customersAlert', 'เพิ่มลูกค้าสำเร็จ', 'success');
-                }
-
-                closeModal('customerModal');
-                loadCustomers();
-            } catch (error) {
-                showAlert('customersAlert', error.message, 'error');
-            }
-        });
 
         async function editCustomer(id) {
-            try {
-                const customers = await apiCall('/customers');
-                const customer = customers.find(c => c.id === id);
-
-                if (customer) {
-                    currentEditId = id;
-                    currentEditType = 'customer';
-
-                    document.getElementById('customerModalTitle').textContent = 'แก้ไขลูกค้า';
-                    document.getElementById('customerName').value = customer.customer_name;
-                    document.getElementById('companyName').value = customer.company_name || '';
-                    document.getElementById('customerEmail').value = customer.email || '';
-                    document.getElementById('customerPhone').value = customer.phone || '';
-                    document.getElementById('customerAddress').value = customer.address || '';
-                    document.getElementById('contactPerson').value = customer.contact_person || '';
-                    document.getElementById('customerStatus').value = customer.status;
-
-                    openModal('customerModal');
-                }
-            } catch (error) {
-                showAlert('customersAlert', error.message, 'error');
-            }
+    try {
+        console.log('🔍 Editing customer ID:', id);
+        
+        const customers = await apiCall('/customers');
+        const customer = customers.find(c => c.id === id);
+        
+        if (customer) {
+            currentEditId = id;
+            currentEditType = 'customer';
+            
+            document.getElementById('customerModalTitle').textContent = 'แก้ไขลูกค้า';
+            document.getElementById('customerName').value = customer.customer_name || '';
+            document.getElementById('companyName').value = customer.company_name || '';
+            document.getElementById('customerEmail').value = customer.email || '';
+            document.getElementById('customerPhone').value = customer.phone || '';
+            document.getElementById('customerAddress').value = customer.address || '';
+            document.getElementById('contactPerson').value = customer.contact_person || '';
+            document.getElementById('customerStatus').value = customer.status || 'active';
+            
+            openModal('customerModal');
+        } else {
+            throw new Error('ไม่พบข้อมูลลูกค้าที่ต้องการแก้ไข');
         }
-
-        async function deleteCustomer(id) {
-            if (confirm('คุณต้องการลบลูกค้านี้หรือไม่?')) {
-                try {
-                    await apiCall(`/customers/${id}`, { method: 'DELETE' });
-                    showAlert('customersAlert', 'ลบลูกค้าสำเร็จ', 'success');
-                    loadCustomers();
-                } catch (error) {
-                    showAlert('customersAlert', error.message, 'error');
-                }
-            }
-        }
+    } catch (error) {
+        console.error('❌ Edit customer error:', error);
+        showAlert('customersAlert', error.message, 'error');
+    }
+}
 
         // Employee CRUD Operations
-        document.getElementById('employeeForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const formData = {
-                employee_id: document.getElementById('employeeId').value,
-                first_name: document.getElementById('firstName').value,
-                last_name: document.getElementById('lastName').value,
-                email: document.getElementById('employeeEmail').value,
-                phone: document.getElementById('employeePhone').value,
-                position: document.getElementById('position').value,
-                department: document.getElementById('employeeDepartment').value,
-                salary: document.getElementById('salary').value,
-                hire_date: document.getElementById('hireDate').value,
-                status: document.getElementById('employeeStatus').value
-            };
-
-            try {
-                if (currentEditId) {
-                    await apiCall(`/employees/${currentEditId}`, {
-                        method: 'PUT',
-                        body: JSON.stringify(formData)
-                    });
-                    showAlert('employeesAlert', 'อัปเดตพนักงานสำเร็จ', 'success');
-                } else {
-                    await apiCall('/employees', {
-                        method: 'POST',
-                        body: JSON.stringify(formData)
-                    });
-                    showAlert('employeesAlert', 'เพิ่มพนักงานสำเร็จ', 'success');
-                }
-
-                closeModal('employeeModal');
-                loadEmployees();
-            } catch (error) {
-                showAlert('employeesAlert', error.message, 'error');
-            }
-        });
-
-        async function editEmployee(id) {
-            try {
-                const employees = await apiCall('/employees');
-                const employee = employees.find(e => e.id === id);
-
-                if (employee) {
-                    currentEditId = id;
-                    currentEditType = 'employee';
-
-                    document.getElementById('employeeModalTitle').textContent = 'แก้ไขพนักงาน';
-                    document.getElementById('employeeId').value = employee.employee_id;
-                    document.getElementById('firstName').value = employee.first_name;
-                    document.getElementById('lastName').value = employee.last_name;
-                    document.getElementById('employeeEmail').value = employee.email || '';
-                    document.getElementById('employeePhone').value = employee.phone || '';
-                    document.getElementById('position').value = employee.position || '';
-                    document.getElementById('employeeDepartment').value = employee.department || '';
-                    document.getElementById('salary').value = employee.salary || '';
-                    document.getElementById('hireDate').value = employee.hire_date || '';
-                    document.getElementById('employeeStatus').value = employee.status;
-
-                    openModal('employeeModal');
-                }
-            } catch (error) {
-                showAlert('employeesAlert', error.message, 'error');
-            }
+        // แก้ไข Employee Form Submission
+document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = {
+        employee_id: document.getElementById('employeeId').value.trim(),
+        first_name: document.getElementById('firstName').value.trim(),
+        last_name: document.getElementById('lastName').value.trim(),
+        email: document.getElementById('employeeEmail').value.trim(),
+        phone: document.getElementById('employeePhone').value.trim(),
+        position: document.getElementById('position').value.trim(),
+        department: document.getElementById('employeeDepartment').value.trim(),
+        salary: document.getElementById('salary').value,
+        hire_date: document.getElementById('hireDate').value,
+        status: document.getElementById('employeeStatus').value
+    };
+    
+    // Validation
+    if (!formData.employee_id || !formData.first_name || !formData.last_name) {
+        showAlert('employeesAlert', 'กรุณากรอกรหัสพนักงาน ชื่อ และนามสกุล', 'error');
+        return;
+    }
+    
+    try {
+        console.log('🔍 Submitting employee form:', formData);
+        
+        if (currentEditId) {
+            const result = await apiCall(`/employees/${currentEditId}`, {
+                method: 'PUT',
+                body: JSON.stringify(formData)
+            });
+            console.log('✅ Employee updated:', result);
+            showAlert('employeesAlert', 'อัปเดตพนักงานสำเร็จ', 'success');
+        } else {
+            const result = await apiCall('/employees', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+            console.log('✅ Employee created:', result);
+            showAlert('employeesAlert', 'เพิ่มพนักงานสำเร็จ', 'success');
         }
+        
+        closeModal('employeeModal');
+        loadEmployees();
+    } catch (error) {
+        console.error('❌ Employee form submission error:', error);
+        showAlert('employeesAlert', error.message, 'error');
+    }
+});
 
-        async function deleteEmployee(id) {
-            if (confirm('คุณต้องการลบพนักงานนี้หรือไม่?')) {
-                try {
-                    await apiCall(`/employees/${id}`, { method: 'DELETE' });
-                    showAlert('employeesAlert', 'ลบพนักงานสำเร็จ', 'success');
-                    loadEmployees();
-                } catch (error) {
-                    showAlert('employeesAlert', error.message, 'error');
-                }
-            }
+        // แก้ไข editEmployee function
+async function editEmployee(id) {
+    try {
+        console.log('🔍 Editing employee ID:', id);
+        
+        const employees = await apiCall('/employees');
+        const employee = employees.find(e => e.id === id);
+        
+        if (employee) {
+            currentEditId = id;
+            currentEditType = 'employee';
+            
+            document.getElementById('employeeModalTitle').textContent = 'แก้ไขพนักงาน';
+            document.getElementById('employeeId').value = employee.employee_id || '';
+            document.getElementById('firstName').value = employee.first_name || '';
+            document.getElementById('lastName').value = employee.last_name || '';
+            document.getElementById('employeeEmail').value = employee.email || '';
+            document.getElementById('employeePhone').value = employee.phone || '';
+            document.getElementById('position').value = employee.position || '';
+            document.getElementById('employeeDepartment').value = employee.department || '';
+            document.getElementById('salary').value = employee.salary || '';
+            document.getElementById('hireDate').value = employee.hire_date || '';
+            document.getElementById('employeeStatus').value = employee.status || 'active';
+            
+            openModal('employeeModal');
+        } else {
+            throw new Error('ไม่พบข้อมูลพนักงานที่ต้องการแก้ไข');
         }
+    } catch (error) {
+        console.error('❌ Edit employee error:', error);
+        showAlert('employeesAlert', error.message, 'error');
+    }
+}
+// แก้ไข deleteEmployee function
+async function deleteEmployee(id) {
+    if (confirm('คุณต้องการลบพนักงานนี้หรือไม่?')) {
+        try {
+            console.log('🔍 Deleting employee ID:', id);
+            
+            const result = await apiCall(`/employees/${id}`, { method: 'DELETE' });
+            console.log('✅ Employee deleted:', result);
+            
+            showAlert('employeesAlert', 'ลบพนักงานสำเร็จ', 'success');
+            loadEmployees();
+        } catch (error) {
+            console.error('❌ Delete employee error:', error);
+            showAlert('employeesAlert', error.message, 'error');
+        }
+    }
+}
+// แก้ไข deleteCustomer function
+async function deleteCustomer(id) {
+    if (confirm('คุณต้องการลบลูกค้านี้หรือไม่?')) {
+        try {
+            console.log('🔍 Deleting customer ID:', id);
+            
+            const result = await apiCall(`/customers/${id}`, { method: 'DELETE' });
+            console.log('✅ Customer deleted:', result);
+            
+            showAlert('customersAlert', 'ลบลูกค้าสำเร็จ', 'success');
+            loadCustomers();
+        } catch (error) {
+            console.error('❌ Delete customer error:', error);
+            showAlert('customersAlert', error.message, 'error');
+        }
+    }
+}
 
         // Utility functions
         function getRoleText(role) {
@@ -1597,9 +1663,20 @@
             }, 5000);
         }
 
-        function openModal(modalId) {
-            document.getElementById(modalId).style.display = 'block';
-        }
+
+// แก้ไข openModal function
+function openModal(modalId) {
+    document.getElementById(modalId).style.display = 'block';
+    
+    // เคลียร์ alert เก่า
+    if (modalId === 'customerModal') {
+        document.getElementById('customersAlert').innerHTML = '';
+    } else if (modalId === 'employeeModal') {
+        document.getElementById('employeesAlert').innerHTML = '';
+    } else if (modalId === 'userModal') {
+        document.getElementById('usersAlert').innerHTML = '';
+    }
+}
 
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
