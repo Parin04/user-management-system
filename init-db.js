@@ -100,13 +100,7 @@ async function initializeDatabase() {
             // Get admin user ID
             const adminUser = await client.query('SELECT id FROM users WHERE username = $1', ['admin']);
             const adminId = adminUser.rows[0].id;
-            
-            await client.query(`
-                INSERT INTO users (username, email, password, role, full_name, department) VALUES 
-                ('admin', 'admin@company.com', $1, 'admin', 'ผู้ดูแลระบบ', 'IT'),
-                ('sales01', 'sales@company.com', $2, 'sales', 'พนักงานขาย', 'Sales'),
-                ('hr01', 'hr@company.com', $3, 'hr', 'พนักงานบุคคล', 'HR')
-            `, [adminId]);
+
             // Insert sample customers with more realistic data
             await client.query(`
                 INSERT INTO customers (customer_name, company_name, email, phone, address, contact_person, created_by) VALUES 
@@ -132,6 +126,12 @@ async function initializeDatabase() {
             console.log('   - พนักงาน: 5 รายการ');
             console.log('ℹ️  หมายเหตุ: ข้อมูลเหล่านี้เป็นข้อมูลตัวอย่างสำหรับการทดสอบระบบ');
         }
+        // แสดงผู้ใช้งานทั้งหมด
+        const allUsers = await client.query('SELECT username, email, role FROM users ORDER BY id');
+        console.log('👥 ผู้ใช้งานทั้งหมด:');
+        allUsers.rows.forEach(user => {
+            console.log(`   - ${user.username} | ${user.email} | role: ${user.role}`);
+        });
 
         console.log('🎉 ติดตั้งระบบเสร็จสิ้น!');
         console.log('🌐 ระบบพร้อมใช้งานเป็น Demo System');
