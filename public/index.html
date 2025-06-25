@@ -481,7 +481,7 @@
 
             /* Hide table, show mobile cards */
             .table-container .table {
-                display: block;
+                display: none;
             }
 
             .mobile-cards {
@@ -1067,6 +1067,19 @@
             const users = await apiCall('/users');
             const tbody = document.getElementById('usersTable');
             tbody.innerHTML = '';
+                        let mobileCardsContainer = document.querySelector('#customersSection .mobile-cards');
+            if (!mobileCardsContainer) {
+                mobileCardsContainer = document.createElement('div');
+                mobileCardsContainer.className = 'mobile-cards';
+                document.querySelector('#customersSection .table-container').appendChild(mobileCardsContainer);
+            }
+            mobileCardsContainer.innerHTML = '';
+
+            if (customers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</td></tr>';
+                mobileCardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</div>';
+                return;
+            }
 
             users.forEach(user => {
                 const row = document.createElement('tr');
