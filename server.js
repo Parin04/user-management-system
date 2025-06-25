@@ -35,30 +35,85 @@ const pool = new Pool({
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'my-super-secret-jwt-key-2024';
 
-// Auth Middleware
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
     console.log('🔍 Token verification:');
-    console.log('- Auth header:', authHeader);
+    console.log('- Auth header exists:', !!authHeader);
     console.log('- Token exists:', !!token);
 
     if (!token) {
-        return res.status(401).json({ error: 'Access token required' });
+        console.log('❌ No token provided');
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ', requireLogin: true });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
             console.log('❌ Token verification failed:', err.message);
-            return res.status(403).json({ error: 'Invalid token' });
+            
+            if (err.name === 'TokenExpiredError') {
+                return res.status(401).json({ 
+                    error: 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่', 
+                    requireLogin: true,
+                    expired: true
+                });
+            }
+            
+            return res.status(403).json({ 
+                error: 'Token ไม่ถูกต้อง',
+                requireLogin: true
+            });
         }
         
-        console.log('✅ Token verified for user:', user);
+        console.log('✅ Token verified for user:', user.username, 'role:', user.role);
         req.user = user;
         next();
     });
 };
+
+// เพิ่ม API สำหรับตรวจสอบ users (debug)
+app.get('/api/debug/all-users', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT id, username, role, full_name, created_at FROM users ORDER BY role, username');
+        res.json({
+            success: true,
+            users: result.rows,
+            count: result.rows.length
+        });
+    } catch (err) {
+        console.error('Debug users error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// เพิ่ม API สำหรับสร้าง default users ใหม่
+app.post('/api/debug/recreate-users', async (req, res) => {
+    try {
+        // ลบผู้ใช้งานเก่า (ยกเว้น admin)
+        await pool.query('DELETE FROM users WHERE username IN ($1, $2)', ['sales01', 'hr01']);
+        
+        // สร้างผู้ใช้งานใหม่
+        const salesPassword = await bcrypt.hash('sales123', 10);
+        const hrPassword = await bcrypt.hash('hr123', 10);
+
+        await pool.query(`
+            INSERT INTO users (username, email, password, role, full_name, department) VALUES 
+            ('sales01', 'sales@company.com', $1, 'sales', 'พนักงานขาย', 'Sales'),
+            ('hr01', 'hr@company.com', $2, 'hr', 'พนักงานบุคคล', 'HR')
+        `, [salesPassword, hrPassword]);
+
+        console.log('✅ Recreated sales and hr users');
+        
+        res.json({ 
+            success: true, 
+            message: 'สร้างผู้ใช้งาน sales01 และ hr01 ใหม่เรียบร้อย' 
+        });
+    } catch (err) {
+        console.error('Recreate users error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 
 const authorize = (roles) => {
@@ -113,7 +168,7 @@ app.post('/api/login', async (req, res) => {
 
         if (result.rows.length === 0) {
             console.log('❌ User not found:', username);
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
         }
 
         const user = result.rows[0];
@@ -123,7 +178,7 @@ app.post('/api/login', async (req, res) => {
 
         if (!validPassword) {
             console.log('❌ Invalid password for:', username);
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
         }
 
         const tokenPayload = { 
@@ -135,11 +190,13 @@ app.post('/api/login', async (req, res) => {
         
         console.log('🔍 Creating token with payload:', tokenPayload);
         
-        const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '8h' });
+        // เพิ่มเวลา token ให้ยาวขึ้น
+        const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
 
         console.log('✅ Login successful for:', username, 'role:', user.role);
 
         res.json({
+            success: true,
             token,
             user: {
                 id: user.id,
@@ -150,7 +207,7 @@ app.post('/api/login', async (req, res) => {
         });
     } catch (err) {
         console.error('❌ Login error:', err);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์' });
     }
 });
 

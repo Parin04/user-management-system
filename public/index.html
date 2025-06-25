@@ -919,21 +919,23 @@
             };
 
             console.log('🔍 API Call:', endpoint);
-            console.log('- Token exists:', !!token);
-            console.log('- Config:', config);
 
             try {
                 const response = await fetch(`${API_BASE}${endpoint}`, config);
                 const data = await response.json();
 
-                console.log('📡 API Response:', {
-                    status: response.status,
-                    ok: response.ok,
-                    endpoint: endpoint
-                });
+                console.log('📡 API Response status:', response.status);
 
                 if (!response.ok) {
                     console.error('❌ API Error:', data);
+
+                    // ถ้า token หมดอายุหรือต้องการ login ใหม่
+                    if (data.requireLogin || data.expired || response.status === 401) {
+                        console.log('🔄 Redirecting to login...');
+                        logout();
+                        throw new Error('กรุณาเข้าสู่ระบบใหม่');
+                    }
+
                     throw new Error(data.error || 'เกิดข้อผิดพลาด');
                 }
 
@@ -941,6 +943,21 @@
                 return data;
             } catch (error) {
                 console.error('❌ API Error:', error);
+
+                // ถ้าเป็น network error และมี token
+                if (error.name === 'TypeError' && token) {
+                    console.log('🔄 Network error - checking token validity...');
+                    // ลอง verify token โดยเรียก /api/me
+                    try {
+                        await fetch(`${API_BASE}/me`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                    } catch {
+                        logout();
+                        throw new Error('กรุณาเข้าสู่ระบบใหม่');
+                    }
+                }
+
                 throw error;
             }
         }
@@ -950,27 +967,74 @@
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
 
+            if (!username || !password) {
+                showAlert('loginAlert', 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน', 'error');
+                return;
+            }
+
             try {
+                console.log('🔍 Attempting login for:', username);
+
                 const data = await apiCall('/login', {
                     method: 'POST',
                     body: JSON.stringify({ username, password })
                 });
 
-                setToken(data.token);
-                currentUser = data.user;
+                console.log('✅ Login response:', data);
 
-                document.getElementById('loginContainer').style.display = 'none';
-                document.getElementById('mainApp').style.display = 'block';
+                if (data.success && data.token) {
+                    setToken(data.token);
+                    currentUser = data.user;
 
-                initializeApp();
+                    console.log('✅ Login successful, user:', currentUser);
+
+                    document.getElementById('loginContainer').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'block';
+
+                    // Clear login form
+                    document.getElementById('loginForm').reset();
+
+                    initializeApp();
+                } else {
+                    throw new Error('การเข้าสู่ระบบไม่สำเร็จ');
+                }
             } catch (error) {
+                console.error('❌ Login error:', error);
                 showAlert('loginAlert', error.message, 'error');
             }
         });
+        // เพิ่ม function สำหรับ debug users
+        async function debugUsers() {
+            try {
+                const response = await fetch('/api/debug/all-users');
+                const data = await response.json();
+                console.log('📊 All users in database:', data);
+                return data;
+            } catch (error) {
+                console.error('Debug users error:', error);
+            }
+        }
 
+        // เพิ่ม function สำหรับสร้าง users ใหม่
+        async function recreateUsers() {
+            try {
+                const response = await fetch('/api/debug/recreate-users', { method: 'POST' });
+                const data = await response.json();
+                console.log('✅ Recreate users result:', data);
+                alert(data.message || 'สร้างผู้ใช้งานใหม่เรียบร้อย');
+                return data;
+            } catch (error) {
+                console.error('Recreate users error:', error);
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            }
+        }
+
+        // เพิ่มไว้ใน window object เพื่อใช้ใน console
+        window.debugUsers = debugUsers;
+        window.recreateUsers = recreateUsers;
         // แก้ไข initializeApp function
         async function initializeApp() {
             try {
