@@ -620,7 +620,7 @@
         <div class="container">
             <div class="content">
                 <!-- Users Section -->
-                <div id="usersSection" class="section">
+                <div id="usersSection" class="section" style="display: none;">
                     <div class="actions">
                         <button class="btn btn-success" onclick="openModal('userModal')">
                             <i class="fas fa-plus"></i> เพิ่มผู้ใช้งาน
@@ -1063,48 +1063,70 @@
 
     // Load Users
     async function loadUsers() {
-        try {
-            const users = await apiCall('/users');
-            const tbody = document.getElementById('usersTable');
-            tbody.innerHTML = '';
-                        let mobileCardsContainer = document.querySelector('#customersSection .mobile-cards');
-            if (!mobileCardsContainer) {
-                mobileCardsContainer = document.createElement('div');
-                mobileCardsContainer.className = 'mobile-cards';
-                document.querySelector('#customersSection .table-container').appendChild(mobileCardsContainer);
-            }
-            mobileCardsContainer.innerHTML = '';
+    try {
+        const users = await apiCall('/users');
+        const tbody = document.getElementById('usersTable');
+        tbody.innerHTML = '';
 
-            if (customers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</td></tr>';
-                mobileCardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</div>';
-                return;
-            }
-
-
-            users.forEach(user => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${user.username}</td>
-                    <td>${user.email}</td>
-                    <td>${user.full_name}</td>
-                    <td>${getRoleText(user.role)}</td>
-                    <td>${user.department || '-'}</td>
-                    <td>
-                        <button class="btn btn-primary" onclick="editUser(${user.id})">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-danger" onclick="deleteUser(${user.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        } catch (error) {
-            showAlert('usersAlert', error.message, 'error');
+        let mobileCardsContainer = document.querySelector('#usersSection .mobile-cards');
+        if (!mobileCardsContainer) {
+            mobileCardsContainer = document.createElement('div');
+            mobileCardsContainer.className = 'mobile-cards';
+            document.querySelector('#usersSection .table-container').appendChild(mobileCardsContainer);
         }
+        mobileCardsContainer.innerHTML = '';
+
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลผู้ใช้</td></tr>';
+            mobileCardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลผู้ใช้</div>';
+            return;
+        }
+
+        users.forEach(user => {
+            // Table row
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${user.username}</td>
+                <td>${user.email}</td>
+                <td>${user.full_name}</td>
+                <td>${getRoleText(user.role)}</td>
+                <td>${user.department || '-'}</td>
+                <td>
+                    <button class="btn btn-primary" onclick="editUser(${user.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteUser(${user.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+
+            // Mobile card
+            const card = document.createElement('div');
+            card.className = 'mobile-card';
+            card.innerHTML = `
+                <div class="mobile-card-header">${user.full_name || user.username}</div>
+                <div class="mobile-card-body">
+                    <div class="field"><span class="field-label">อีเมล:</span> <span>${user.email}</span></div>
+                    <div class="field"><span class="field-label">บทบาท:</span> <span>${getRoleText(user.role)}</span></div>
+                    <div class="field"><span class="field-label">แผนก:</span> <span>${user.department || '-'}</span></div>
+                </div>
+                <div class="mobile-card-actions">
+                    <button class="btn btn-primary btn-sm" onclick="editUser(${user.id})">
+                        <i class="fas fa-edit"></i> แก้ไข
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">
+                        <i class="fas fa-trash"></i> ลบ
+                    </button>
+                </div>
+            `;
+            mobileCardsContainer.appendChild(card);
+        });
+    } catch (error) {
+        showAlert('usersAlert', error.message, 'error');
     }
+}
 
     // Load Customers
     async function loadCustomers() {
