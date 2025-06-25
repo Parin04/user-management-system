@@ -887,849 +887,719 @@
         </div>
     </div>
 
-    <script>
-        // Global variables
-        let currentUser = null;
-        let currentEditId = null;
-        let currentEditType = null;
-        const API_BASE = '/api';
+   // แทนที่ส่วน JavaScript ใน HTML ด้วยโค้ดนี้ (เอา Debug ออกหมดแล้ว)
 
-        // Authentication
-        function getToken() {
-            return localStorage.getItem('token');
-        }
+<script>
+    // Global variables
+    let currentUser = null;
+    let currentEditId = null;
+    let currentEditType = null;
+    const API_BASE = '/api';
 
-        function setToken(token) {
-            localStorage.setItem('token', token);
-        }
-
-        function removeToken() {
-            localStorage.removeItem('token');
-        }
-
-        // API Helper
-        async function apiCall(endpoint, options = {}) {
-            const token = getToken();
-            const config = {
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` })
-                },
-                ...options
-            };
-
-            console.log('🔍 API Call:', endpoint);
-
-            try {
-                const response = await fetch(`${API_BASE}${endpoint}`, config);
-                const data = await response.json();
-
-                console.log('📡 API Response status:', response.status);
-
-                if (!response.ok) {
-                    console.error('❌ API Error:', data);
-
-                    // ถ้า token หมดอายุหรือต้องการ login ใหม่
-                    if (data.requireLogin || data.expired || response.status === 401) {
-                        console.log('🔄 Redirecting to login...');
-                        logout();
-                        throw new Error('กรุณาเข้าสู่ระบบใหม่');
-                    }
-
-                    throw new Error(data.error || 'เกิดข้อผิดพลาด');
-                }
-
-                console.log('✅ API Success:', endpoint);
-                return data;
-            } catch (error) {
-                console.error('❌ API Error:', error);
-
-                // ถ้าเป็น network error และมี token
-                if (error.name === 'TypeError' && token) {
-                    console.log('🔄 Network error - checking token validity...');
-                    // ลอง verify token โดยเรียก /api/me
-                    try {
-                        await fetch(`${API_BASE}/me`, {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                    } catch {
-                        logout();
-                        throw new Error('กรุณาเข้าสู่ระบบใหม่');
-                    }
-                }
-
-                throw error;
-            }
-        }
-
-
-        // Login
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-
-            if (!username || !password) {
-                showAlert('loginAlert', 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน', 'error');
-                return;
-            }
-
-            try {
-                console.log('🔍 Attempting login for:', username);
-
-                const data = await apiCall('/login', {
-                    method: 'POST',
-                    body: JSON.stringify({ username, password })
-                });
-
-                console.log('✅ Login response:', data);
-
-                if (data.success && data.token) {
-                    setToken(data.token);
-                    currentUser = data.user;
-
-                    console.log('✅ Login successful, user:', currentUser);
-
-                    document.getElementById('loginContainer').style.display = 'none';
-                    document.getElementById('mainApp').style.display = 'block';
-
-                    // Clear login form
-                    document.getElementById('loginForm').reset();
-
-                    initializeApp();
-                } else {
-                    throw new Error('การเข้าสู่ระบบไม่สำเร็จ');
-                }
-            } catch (error) {
-                console.error('❌ Login error:', error);
-                showAlert('loginAlert', error.message, 'error');
-            }
-        });
-        // เพิ่ม function สำหรับ debug users
-        async function debugUsers() {
-            try {
-                const response = await fetch('/api/debug/all-users');
-                const data = await response.json();
-                console.log('📊 All users in database:', data);
-                return data;
-            } catch (error) {
-                console.error('Debug users error:', error);
-            }
-        }
-
-        // เพิ่ม function สำหรับสร้าง users ใหม่
-        async function recreateUsers() {
-            try {
-                const response = await fetch('/api/debug/recreate-users', { method: 'POST' });
-                const data = await response.json();
-                console.log('✅ Recreate users result:', data);
-                alert(data.message || 'สร้างผู้ใช้งานใหม่เรียบร้อย');
-                return data;
-            } catch (error) {
-                console.error('Recreate users error:', error);
-                alert('เกิดข้อผิดพลาด: ' + error.message);
-            }
-        }
-
-        // เพิ่มไว้ใน window object เพื่อใช้ใน console
-        window.debugUsers = debugUsers;
-        window.recreateUsers = recreateUsers;
-        // แก้ไข initializeApp function
-        async function initializeApp() {
-            try {
-                console.log('🔍 Initializing app...');
-
-                const user = await apiCall('/me');
-                currentUser = user;
-
-                console.log('✅ Current user:', currentUser);
-
-                document.getElementById('userInfo').textContent = `${user.full_name} (${getRoleText(user.role)})`;
-
-                setupNavigation();
-
-                // เลือก section เริ่มต้นตาม role
-                if (user.role === 'admin') {
-                    showSection('users');
-                } else if (user.role === 'sales') {
-                    showSection('customers');
-                } else if (user.role === 'hr') {
-                    showSection('employees');
-                }
-
-            } catch (error) {
-                console.error('❌ App initialization failed:', error);
-                logout();
-            }
-        }
-
-        function setupNavigation() {
-            console.log('🔍 Setting up navigation for role:', currentUser.role);
-
-            const navUsers = document.getElementById('navUsers');
-            const navCustomers = document.getElementById('navCustomers');
-            const navEmployees = document.getElementById('navEmployees');
-
-            // แสดง/ซ่อน navigation ตาม role
-            if (currentUser.role === 'admin') {
-                navUsers.style.display = 'flex';
-                navCustomers.style.display = 'flex';
-                navEmployees.style.display = 'flex';
-                console.log('✅ Admin: All menus enabled');
-            } else if (currentUser.role === 'sales') {
-                navUsers.style.display = 'none';
-                navCustomers.style.display = 'flex';
-                navEmployees.style.display = 'none';
-                console.log('✅ Sales: Customers menu enabled');
-            } else if (currentUser.role === 'hr') {
-                navUsers.style.display = 'none';
-                navCustomers.style.display = 'none';
-                navEmployees.style.display = 'flex';
-                console.log('✅ HR: Employees menu enabled');
-            }
-        }
-
-        function showSection(section) {
-            console.log('🔍 Showing section:', section, 'for role:', currentUser.role);
-
-            // ตรวจสอบสิทธิ์การเข้าถึง
-            if (section === 'users' && currentUser.role !== 'admin') {
-                console.warn('⚠️ Access denied to users section');
-                return;
-            }
-
-            if (section === 'customers' && !['sales', 'admin'].includes(currentUser.role)) {
-                console.warn('⚠️ Access denied to customers section');
-                return;
-            }
-
-            if (section === 'employees' && !['hr', 'admin'].includes(currentUser.role)) {
-                console.warn('⚠️ Access denied to employees section');
-                return;
-            }
-
-            // ซ่อนทุก section
-            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-
-            // ลบ active class จาก nav buttons
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-
-            // แสดง section ที่เลือก
-            const sectionElement = document.getElementById(`${section}Section`);
-            const navElement = document.getElementById(`nav${section.charAt(0).toUpperCase() + section.slice(1)}`);
-
-            if (sectionElement) {
-                sectionElement.style.display = 'block';
-                console.log('✅ Section displayed:', section);
-            }
-
-            if (navElement) {
-                navElement.classList.add('active');
-            }
-
-            // โหลดข้อมูล
-            loadSectionData(section);
-        }
-        // เพิ่ม function สำหรับโหลดข้อมูล
-        function loadSectionData(section) {
-            console.log('🔍 Loading data for section:', section);
-
-            if (section === 'users' && currentUser.role === 'admin') {
-                loadUsers();
-            } else if (section === 'customers' && ['sales', 'admin'].includes(currentUser.role)) {
-                loadCustomers();
-            } else if (section === 'employees' && ['hr', 'admin'].includes(currentUser.role)) {
-                loadEmployees();
-            }
-        }
-
-        // Load Users
-        async function loadUsers() {
-            try {
-                const users = await apiCall('/users');
-                const tbody = document.getElementById('usersTable');
-                tbody.innerHTML = '';
-
-                users.forEach(user => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${user.username}</td>
-                        <td>${user.email}</td>
-                        <td>${user.full_name}</td>
-                        <td>${getRoleText(user.role)}</td>
-                        <td>${user.department || '-'}</td>
-                        <td>
-                            <button class="btn btn-primary" onclick="editUser(${user.id})">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-danger" onclick="deleteUser(${user.id})">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            } catch (error) {
-                showAlert('usersAlert', error.message, 'error');
-            }
-        }
-
-        // Load Customers
-// แก้ไข loadCustomers function
-async function loadCustomers() {
-    console.log('🔍 Loading customers...');
-    
-    try {
-        const customers = await apiCall('/customers');
-        console.log('✅ Customers loaded:', customers.length, 'records');
-        
-        const tbody = document.getElementById('customersTable');
-        tbody.innerHTML = '';
-        
-        // สร้าง mobile cards container ถ้ายังไม่มี
-        let mobileCardsContainer = document.querySelector('#customersSection .mobile-cards');
-        if (!mobileCardsContainer) {
-            mobileCardsContainer = document.createElement('div');
-            mobileCardsContainer.className = 'mobile-cards';
-            document.querySelector('#customersSection .table-container').appendChild(mobileCardsContainer);
-        }
-        mobileCardsContainer.innerHTML = '';
-        
-        if (customers.length === 0) {
-            // แสดงข้อความเมื่อไม่มีข้อมูล
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</td></tr>';
-            mobileCardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</div>';
-            return;
-        }
-        
-        customers.forEach(customer => {
-            // Table row
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${customer.customer_name || '-'}</td>
-                <td>${customer.company_name || '-'}</td>
-                <td>${customer.email || '-'}</td>
-                <td>${customer.phone || '-'}</td>
-                <td><span class="status-badge status-${customer.status || 'active'}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
-                <td class="actions">
-                    <button class="btn btn-primary btn-sm" onclick="editCustomer(${customer.id})">
-                        <i class="fas fa-edit"></i> แก้ไข
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${customer.id})">
-                        <i class="fas fa-trash"></i> ลบ
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-            
-            // Mobile card
-            const card = document.createElement('div');
-            card.className = 'mobile-card';
-            card.innerHTML = `
-                <div class="mobile-card-header">${customer.customer_name || 'ไม่ระบุชื่อ'}</div>
-                <div class="mobile-card-body">
-                    <div class="field">
-                        <span class="field-label">บริษัท:</span>
-                        <span>${customer.company_name || '-'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="field-label">อีเมล:</span>
-                        <span>${customer.email || '-'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="field-label">โทรศัพท์:</span>
-                        <span>${customer.phone || '-'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="field-label">สถานะ:</span>
-                        <span class="status-badge status-${customer.status || 'active'}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
-                    </div>
-                </div>
-                <div class="mobile-card-actions">
-                    <button class="btn btn-primary btn-sm" onclick="editCustomer(${customer.id})">
-                        <i class="fas fa-edit"></i> แก้ไข
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${customer.id})">
-                        <i class="fas fa-trash"></i> ลบ
-                    </button>
-                </div>
-            `;
-            mobileCardsContainer.appendChild(card);
-        });
-        
-    } catch (error) {
-        console.error('❌ Failed to load customers:', error);
-        showAlert('customersAlert', error.message, 'error');
+    // Authentication
+    function getToken() {
+        return localStorage.getItem('token');
     }
-}
 
-        // Load Employees
-       // แก้ไข loadEmployees function
-async function loadEmployees() {
-    console.log('🔍 Loading employees...');
-    
-    try {
-        const employees = await apiCall('/employees');
-        console.log('✅ Employees loaded:', employees.length, 'records');
-        
-        const tbody = document.getElementById('employeesTable');
-        tbody.innerHTML = '';
-        
-        // สร้าง mobile cards container ถ้ายังไม่มี
-        let mobileCardsContainer = document.querySelector('#employeesSection .mobile-cards');
-        if (!mobileCardsContainer) {
-            mobileCardsContainer = document.createElement('div');
-            mobileCardsContainer.className = 'mobile-cards';
-            document.querySelector('#employeesSection .table-container').appendChild(mobileCardsContainer);
-        }
-        mobileCardsContainer.innerHTML = '';
-        
-        if (employees.length === 0) {
-            // แสดงข้อความเมื่อไม่มีข้อมูล
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลพนักงาน</td></tr>';
-            mobileCardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลพนักงาน</div>';
-            return;
-        }
-        
-        employees.forEach(employee => {
-            // Table row
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${employee.employee_id || '-'}</td>
-                <td>${(employee.first_name || '') + ' ' + (employee.last_name || '')}</td>
-                <td>${employee.email || '-'}</td>
-                <td>${employee.position || '-'}</td>
-                <td>${employee.department || '-'}</td>
-                <td><span class="status-badge status-${employee.status || 'active'}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
-                <td class="actions">
-                    <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.id})">
-                        <i class="fas fa-edit"></i> แก้ไข
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${employee.id})">
-                        <i class="fas fa-trash"></i> ลบ
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-            
-            // Mobile card
-            const card = document.createElement('div');
-            card.className = 'mobile-card';
-            card.innerHTML = `
-                <div class="mobile-card-header">${(employee.first_name || '') + ' ' + (employee.last_name || '')}</div>
-                <div class="mobile-card-body">
-                    <div class="field">
-                        <span class="field-label">รหัส:</span>
-                        <span>${employee.employee_id || '-'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="field-label">อีเมล:</span>
-                        <span>${employee.email || '-'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="field-label">ตำแหน่ง:</span>
-                        <span>${employee.position || '-'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="field-label">แผนก:</span>
-                        <span>${employee.department || '-'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="field-label">สถานะ:</span>
-                        <span class="status-badge status-${employee.status || 'active'}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
-                    </div>
-                </div>
-                <div class="mobile-card-actions">
-                    <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.id})">
-                        <i class="fas fa-edit"></i> แก้ไข
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${employee.id})">
-                        <i class="fas fa-trash"></i> ลบ
-                    </button>
-                </div>
-            `;
-            mobileCardsContainer.appendChild(card);
-        });
-        
-    } catch (error) {
-        console.error('❌ Failed to load employees:', error);
-        showAlert('employeesAlert', error.message, 'error');
-        
-        // แสดงข้อความ error ในตาราง
-        const tbody = document.getElementById('employeesTable');
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #e74c3c;">เกิดข้อผิดพลาด: ${error.message}</td></tr>`;
+    function setToken(token) {
+        localStorage.setItem('token', token);
     }
-}
 
+    function removeToken() {
+        localStorage.removeItem('token');
+    }
 
-        // เพิ่ม function สำหรับ debug
-        function debugCurrentUser() {
-            console.log('🔍 Debug Current User:');
-            console.log('- currentUser:', currentUser);
-            console.log('- token:', getToken());
-            console.log('- localStorage:', localStorage.getItem('token'));
-        }
+    // API Helper
+    async function apiCall(endpoint, options = {}) {
+        const token = getToken();
+        const config = {
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+            },
+            ...options
+        };
 
-        // เรียกใช้ debug function ใน console
-        window.debugCurrentUser = debugCurrentUser;
+        try {
+            const response = await fetch(`${API_BASE}${endpoint}`, config);
+            const data = await response.json();
 
-        // User CRUD Operations
-        document.getElementById('userForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const formData = {
-                username: document.getElementById('userUsername').value,
-                email: document.getElementById('userEmail').value,
-                password: document.getElementById('userPassword').value,
-                role: document.getElementById('userRole').value,
-                full_name: document.getElementById('userFullName').value,
-                phone: document.getElementById('userPhone').value,
-                department: document.getElementById('userDepartment').value
-            };
-
-            try {
-                if (currentEditId) {
-                    await apiCall(`/users/${currentEditId}`, {
-                        method: 'PUT',
-                        body: JSON.stringify(formData)
-                    });
-                    showAlert('usersAlert', 'อัปเดตผู้ใช้งานสำเร็จ', 'success');
-                } else {
-                    await apiCall('/users', {
-                        method: 'POST',
-                        body: JSON.stringify(formData)
-                    });
-                    showAlert('usersAlert', 'เพิ่มผู้ใช้งานสำเร็จ', 'success');
+            if (!response.ok) {
+                if (data.requireLogin || data.expired || response.status === 401) {
+                    logout();
+                    throw new Error('กรุณาเข้าสู่ระบบใหม่');
                 }
-
-                closeModal('userModal');
-                loadUsers();
-            } catch (error) {
-                showAlert('usersAlert', error.message, 'error');
+                throw new Error(data.error || 'เกิดข้อผิดพลาด');
             }
-        });
 
-        async function editUser(id) {
-            try {
-                const users = await apiCall('/users');
-                const user = users.find(u => u.id === id);
-
-                if (user) {
-                    currentEditId = id;
-                    currentEditType = 'user';
-
-                    document.getElementById('userModalTitle').textContent = 'แก้ไขผู้ใช้งาน';
-                    document.getElementById('userUsername').value = user.username;
-                    document.getElementById('userEmail').value = user.email;
-                    document.getElementById('userPassword').value = '';
-                    document.getElementById('userRole').value = user.role;
-                    document.getElementById('userFullName').value = user.full_name;
-                    document.getElementById('userPhone').value = user.phone || '';
-                    document.getElementById('userDepartment').value = user.department || '';
-
-                    document.getElementById('userPassword').required = false;
-                    openModal('userModal');
-                }
-            } catch (error) {
-                showAlert('usersAlert', error.message, 'error');
-            }
-        }
-
-        async function deleteUser(id) {
-            if (confirm('คุณต้องการลบผู้ใช้งานนี้หรือไม่?')) {
+            return data;
+        } catch (error) {
+            if (error.name === 'TypeError' && token) {
                 try {
-                    await apiCall(`/users/${id}`, { method: 'DELETE' });
-                    showAlert('usersAlert', 'ลบผู้ใช้งานสำเร็จ', 'success');
-                    loadUsers();
-                } catch (error) {
-                    showAlert('usersAlert', error.message, 'error');
+                    await fetch(`${API_BASE}/me`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                } catch {
+                    logout();
+                    throw new Error('กรุณาเข้าสู่ระบบใหม่');
                 }
             }
+            throw error;
+        }
+    }
+
+    // Login
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!username || !password) {
+            showAlert('loginAlert', 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน', 'error');
+            return;
         }
 
-       // แก้ไข Customer Form Submission
-document.getElementById('customerForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = {
-        customer_name: document.getElementById('customerName').value.trim(),
-        company_name: document.getElementById('companyName').value.trim(),
-        email: document.getElementById('customerEmail').value.trim(),
-        phone: document.getElementById('customerPhone').value.trim(),
-        address: document.getElementById('customerAddress').value.trim(),
-        contact_person: document.getElementById('contactPerson').value.trim(),
-        status: document.getElementById('customerStatus').value
-    };
-    
-    // Validation
-    if (!formData.customer_name) {
-        showAlert('customersAlert', 'กรุณากรอกชื่อลูกค้า', 'error');
-        return;
-    }
-    
-    try {
-        console.log('🔍 Submitting customer form:', formData);
-        
-        if (currentEditId) {
-            const result = await apiCall(`/customers/${currentEditId}`, {
-                method: 'PUT',
-                body: JSON.stringify(formData)
-            });
-            console.log('✅ Customer updated:', result);
-            showAlert('customersAlert', 'อัปเดตลูกค้าสำเร็จ', 'success');
-        } else {
-            const result = await apiCall('/customers', {
-                method: 'POST',
-                body: JSON.stringify(formData)
-            });
-            console.log('✅ Customer created:', result);
-            showAlert('customersAlert', 'เพิ่มลูกค้าสำเร็จ', 'success');
-        }
-        
-        closeModal('customerModal');
-        loadCustomers();
-    } catch (error) {
-        console.error('❌ Customer form submission error:', error);
-        showAlert('customersAlert', error.message, 'error');
-    }
-});
-
-
-        async function editCustomer(id) {
-    try {
-        console.log('🔍 Editing customer ID:', id);
-        
-        const customers = await apiCall('/customers');
-        const customer = customers.find(c => c.id === id);
-        
-        if (customer) {
-            currentEditId = id;
-            currentEditType = 'customer';
-            
-            document.getElementById('customerModalTitle').textContent = 'แก้ไขลูกค้า';
-            document.getElementById('customerName').value = customer.customer_name || '';
-            document.getElementById('companyName').value = customer.company_name || '';
-            document.getElementById('customerEmail').value = customer.email || '';
-            document.getElementById('customerPhone').value = customer.phone || '';
-            document.getElementById('customerAddress').value = customer.address || '';
-            document.getElementById('contactPerson').value = customer.contact_person || '';
-            document.getElementById('customerStatus').value = customer.status || 'active';
-            
-            openModal('customerModal');
-        } else {
-            throw new Error('ไม่พบข้อมูลลูกค้าที่ต้องการแก้ไข');
-        }
-    } catch (error) {
-        console.error('❌ Edit customer error:', error);
-        showAlert('customersAlert', error.message, 'error');
-    }
-}
-
-        // Employee CRUD Operations
-        // แก้ไข Employee Form Submission
-document.getElementById('employeeForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = {
-        employee_id: document.getElementById('employeeId').value.trim(),
-        first_name: document.getElementById('firstName').value.trim(),
-        last_name: document.getElementById('lastName').value.trim(),
-        email: document.getElementById('employeeEmail').value.trim(),
-        phone: document.getElementById('employeePhone').value.trim(),
-        position: document.getElementById('position').value.trim(),
-        department: document.getElementById('employeeDepartment').value.trim(),
-        salary: document.getElementById('salary').value,
-        hire_date: document.getElementById('hireDate').value,
-        status: document.getElementById('employeeStatus').value
-    };
-    
-    // Validation
-    if (!formData.employee_id || !formData.first_name || !formData.last_name) {
-        showAlert('employeesAlert', 'กรุณากรอกรหัสพนักงาน ชื่อ และนามสกุล', 'error');
-        return;
-    }
-    
-    try {
-        console.log('🔍 Submitting employee form:', formData);
-        
-        if (currentEditId) {
-            const result = await apiCall(`/employees/${currentEditId}`, {
-                method: 'PUT',
-                body: JSON.stringify(formData)
-            });
-            console.log('✅ Employee updated:', result);
-            showAlert('employeesAlert', 'อัปเดตพนักงานสำเร็จ', 'success');
-        } else {
-            const result = await apiCall('/employees', {
-                method: 'POST',
-                body: JSON.stringify(formData)
-            });
-            console.log('✅ Employee created:', result);
-            showAlert('employeesAlert', 'เพิ่มพนักงานสำเร็จ', 'success');
-        }
-        
-        closeModal('employeeModal');
-        loadEmployees();
-    } catch (error) {
-        console.error('❌ Employee form submission error:', error);
-        showAlert('employeesAlert', error.message, 'error');
-    }
-});
-
-        // แก้ไข editEmployee function
-async function editEmployee(id) {
-    try {
-        console.log('🔍 Editing employee ID:', id);
-        
-        const employees = await apiCall('/employees');
-        const employee = employees.find(e => e.id === id);
-        
-        if (employee) {
-            currentEditId = id;
-            currentEditType = 'employee';
-            
-            document.getElementById('employeeModalTitle').textContent = 'แก้ไขพนักงาน';
-            document.getElementById('employeeId').value = employee.employee_id || '';
-            document.getElementById('firstName').value = employee.first_name || '';
-            document.getElementById('lastName').value = employee.last_name || '';
-            document.getElementById('employeeEmail').value = employee.email || '';
-            document.getElementById('employeePhone').value = employee.phone || '';
-            document.getElementById('position').value = employee.position || '';
-            document.getElementById('employeeDepartment').value = employee.department || '';
-            document.getElementById('salary').value = employee.salary || '';
-            document.getElementById('hireDate').value = employee.hire_date || '';
-            document.getElementById('employeeStatus').value = employee.status || 'active';
-            
-            openModal('employeeModal');
-        } else {
-            throw new Error('ไม่พบข้อมูลพนักงานที่ต้องการแก้ไข');
-        }
-    } catch (error) {
-        console.error('❌ Edit employee error:', error);
-        showAlert('employeesAlert', error.message, 'error');
-    }
-}
-// แก้ไข deleteEmployee function
-async function deleteEmployee(id) {
-    if (confirm('คุณต้องการลบพนักงานนี้หรือไม่?')) {
         try {
-            console.log('🔍 Deleting employee ID:', id);
-            
-            const result = await apiCall(`/employees/${id}`, { method: 'DELETE' });
-            console.log('✅ Employee deleted:', result);
-            
-            showAlert('employeesAlert', 'ลบพนักงานสำเร็จ', 'success');
-            loadEmployees();
+            const data = await apiCall('/login', {
+                method: 'POST',
+                body: JSON.stringify({ username, password })
+            });
+
+            if (data.success && data.token) {
+                setToken(data.token);
+                currentUser = data.user;
+
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                document.getElementById('loginForm').reset();
+
+                initializeApp();
+            } else {
+                throw new Error('การเข้าสู่ระบบไม่สำเร็จ');
+            }
         } catch (error) {
-            console.error('❌ Delete employee error:', error);
-            showAlert('employeesAlert', error.message, 'error');
+            showAlert('loginAlert', error.message, 'error');
+        }
+    });
+
+    // Initialize app
+    async function initializeApp() {
+        try {
+            const user = await apiCall('/me');
+            currentUser = user;
+
+            document.getElementById('userInfo').textContent = `${user.full_name} (${getRoleText(user.role)})`;
+
+            setupNavigation();
+
+            // เลือก section เริ่มต้นตาม role
+            if (user.role === 'admin') {
+                showSection('users');
+            } else if (user.role === 'sales') {
+                showSection('customers');
+            } else if (user.role === 'hr') {
+                showSection('employees');
+            }
+
+        } catch (error) {
+            logout();
         }
     }
-}
-// แก้ไข deleteCustomer function
-async function deleteCustomer(id) {
-    if (confirm('คุณต้องการลบลูกค้านี้หรือไม่?')) {
-        try {
-            console.log('🔍 Deleting customer ID:', id);
-            
-            const result = await apiCall(`/customers/${id}`, { method: 'DELETE' });
-            console.log('✅ Customer deleted:', result);
-            
-            showAlert('customersAlert', 'ลบลูกค้าสำเร็จ', 'success');
+
+    function setupNavigation() {
+        const navUsers = document.getElementById('navUsers');
+        const navCustomers = document.getElementById('navCustomers');
+        const navEmployees = document.getElementById('navEmployees');
+
+        // แสดง/ซ่อน navigation ตาม role
+        if (currentUser.role === 'admin') {
+            navUsers.style.display = 'flex';
+            navCustomers.style.display = 'flex';
+            navEmployees.style.display = 'flex';
+        } else if (currentUser.role === 'sales') {
+            navUsers.style.display = 'none';
+            navCustomers.style.display = 'flex';
+            navEmployees.style.display = 'none';
+        } else if (currentUser.role === 'hr') {
+            navUsers.style.display = 'none';
+            navCustomers.style.display = 'none';
+            navEmployees.style.display = 'flex';
+        }
+    }
+
+    function showSection(section) {
+        // ตรวจสอบสิทธิ์การเข้าถึง
+        if (section === 'users' && currentUser.role !== 'admin') return;
+        if (section === 'customers' && !['sales', 'admin'].includes(currentUser.role)) return;
+        if (section === 'employees' && !['hr', 'admin'].includes(currentUser.role)) return;
+
+        // ซ่อนทุก section
+        document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+        // แสดง section ที่เลือก
+        const sectionElement = document.getElementById(`${section}Section`);
+        const navElement = document.getElementById(`nav${section.charAt(0).toUpperCase() + section.slice(1)}`);
+
+        if (sectionElement) {
+            sectionElement.style.display = 'block';
+        }
+
+        if (navElement) {
+            navElement.classList.add('active');
+        }
+
+        // โหลดข้อมูล
+        loadSectionData(section);
+    }
+
+    function loadSectionData(section) {
+        if (section === 'users' && currentUser.role === 'admin') {
+            loadUsers();
+        } else if (section === 'customers' && ['sales', 'admin'].includes(currentUser.role)) {
             loadCustomers();
+        } else if (section === 'employees' && ['hr', 'admin'].includes(currentUser.role)) {
+            loadEmployees();
+        }
+    }
+
+    // Load Users
+    async function loadUsers() {
+        try {
+            const users = await apiCall('/users');
+            const tbody = document.getElementById('usersTable');
+            tbody.innerHTML = '';
+
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.username}</td>
+                    <td>${user.email}</td>
+                    <td>${user.full_name}</td>
+                    <td>${getRoleText(user.role)}</td>
+                    <td>${user.department || '-'}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="editUser(${user.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteUser(${user.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
         } catch (error) {
-            console.error('❌ Delete customer error:', error);
+            showAlert('usersAlert', error.message, 'error');
+        }
+    }
+
+    // Load Customers
+    async function loadCustomers() {
+        try {
+            const customers = await apiCall('/customers');
+            const tbody = document.getElementById('customersTable');
+            tbody.innerHTML = '';
+
+            // สร้าง mobile cards container ถ้ายังไม่มี
+            let mobileCardsContainer = document.querySelector('#customersSection .mobile-cards');
+            if (!mobileCardsContainer) {
+                mobileCardsContainer = document.createElement('div');
+                mobileCardsContainer.className = 'mobile-cards';
+                document.querySelector('#customersSection .table-container').appendChild(mobileCardsContainer);
+            }
+            mobileCardsContainer.innerHTML = '';
+
+            if (customers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</td></tr>';
+                mobileCardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลลูกค้า</div>';
+                return;
+            }
+
+            customers.forEach(customer => {
+                // Table row
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${customer.customer_name || '-'}</td>
+                    <td>${customer.company_name || '-'}</td>
+                    <td>${customer.email || '-'}</td>
+                    <td>${customer.phone || '-'}</td>
+                    <td><span class="status-badge status-${customer.status || 'active'}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
+                    <td class="actions">
+                        <button class="btn btn-primary btn-sm" onclick="editCustomer(${customer.id})">
+                            <i class="fas fa-edit"></i> แก้ไข
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${customer.id})">
+                            <i class="fas fa-trash"></i> ลบ
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+
+                // Mobile card
+                const card = document.createElement('div');
+                card.className = 'mobile-card';
+                card.innerHTML = `
+                    <div class="mobile-card-header">${customer.customer_name || 'ไม่ระบุชื่อ'}</div>
+                    <div class="mobile-card-body">
+                        <div class="field">
+                            <span class="field-label">บริษัท:</span>
+                            <span>${customer.company_name || '-'}</span>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">อีเมล:</span>
+                            <span>${customer.email || '-'}</span>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">โทรศัพท์:</span>
+                            <span>${customer.phone || '-'}</span>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">สถานะ:</span>
+                            <span class="status-badge status-${customer.status || 'active'}">${customer.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
+                        </div>
+                    </div>
+                    <div class="mobile-card-actions">
+                        <button class="btn btn-primary btn-sm" onclick="editCustomer(${customer.id})">
+                            <i class="fas fa-edit"></i> แก้ไข
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${customer.id})">
+                            <i class="fas fa-trash"></i> ลบ
+                        </button>
+                    </div>
+                `;
+                mobileCardsContainer.appendChild(card);
+            });
+
+        } catch (error) {
             showAlert('customersAlert', error.message, 'error');
         }
     }
-}
 
-        // Utility functions
-        function getRoleText(role) {
-            const roles = {
-                'admin': 'แอดมิน',
-                'sales': 'ฝ่ายขาย',
-                'hr': 'ฝ่ายบุคคล'
-            };
-            return roles[role] || role;
-        }
+    // Load Employees
+    async function loadEmployees() {
+        try {
+            const employees = await apiCall('/employees');
+            const tbody = document.getElementById('employeesTable');
+            tbody.innerHTML = '';
 
-        function showAlert(containerId, message, type) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            setTimeout(() => {
-                container.innerHTML = '';
-            }, 5000);
-        }
+            // สร้าง mobile cards container ถ้ายังไม่มี
+            let mobileCardsContainer = document.querySelector('#employeesSection .mobile-cards');
+            if (!mobileCardsContainer) {
+                mobileCardsContainer = document.createElement('div');
+                mobileCardsContainer.className = 'mobile-cards';
+                document.querySelector('#employeesSection .table-container').appendChild(mobileCardsContainer);
+            }
+            mobileCardsContainer.innerHTML = '';
 
+            if (employees.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลพนักงาน</td></tr>';
+                mobileCardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">ไม่มีข้อมูลพนักงาน</div>';
+                return;
+            }
 
-// แก้ไข openModal function
-function openModal(modalId) {
-    document.getElementById(modalId).style.display = 'block';
-    
-    // เคลียร์ alert เก่า
-    if (modalId === 'customerModal') {
-        document.getElementById('customersAlert').innerHTML = '';
-    } else if (modalId === 'employeeModal') {
-        document.getElementById('employeesAlert').innerHTML = '';
-    } else if (modalId === 'userModal') {
-        document.getElementById('usersAlert').innerHTML = '';
-    }
-}
+            employees.forEach(employee => {
+                // Table row
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${employee.employee_id || '-'}</td>
+                    <td>${(employee.first_name || '') + ' ' + (employee.last_name || '')}</td>
+                    <td>${employee.email || '-'}</td>
+                    <td>${employee.position || '-'}</td>
+                    <td>${employee.department || '-'}</td>
+                    <td><span class="status-badge status-${employee.status || 'active'}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span></td>
+                    <td class="actions">
+                        <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.id})">
+                            <i class="fas fa-edit"></i> แก้ไข
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${employee.id})">
+                            <i class="fas fa-trash"></i> ลบ
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
 
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-            currentEditId = null;
-            currentEditType = null;
-
-            // Reset forms
-            document.getElementById('userForm').reset();
-            document.getElementById('customerForm').reset();
-            document.getElementById('employeeForm').reset();
-
-            // Reset modal titles
-            document.getElementById('userModalTitle').textContent = 'เพิ่มผู้ใช้งาน';
-            document.getElementById('customerModalTitle').textContent = 'เพิ่มลูกค้า';
-            document.getElementById('employeeModalTitle').textContent = 'เพิ่มพนักงาน';
-
-            // Reset password requirement
-            document.getElementById('userPassword').required = true;
-        }
-
-        function logout() {
-            removeToken();
-            currentUser = null;
-            document.getElementById('loginContainer').style.display = 'flex';
-            document.getElementById('mainApp').style.display = 'none';
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function (event) {
-            const modals = document.querySelectorAll('.modal');
-            modals.forEach(modal => {
-                if (event.target === modal) {
-                    modal.style.display = 'none';
-                }
+                // Mobile card
+                const card = document.createElement('div');
+                card.className = 'mobile-card';
+                card.innerHTML = `
+                    <div class="mobile-card-header">${(employee.first_name || '') + ' ' + (employee.last_name || '')}</div>
+                    <div class="mobile-card-body">
+                        <div class="field">
+                            <span class="field-label">รหัส:</span>
+                            <span>${employee.employee_id || '-'}</span>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">อีเมล:</span>
+                            <span>${employee.email || '-'}</span>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">ตำแหน่ง:</span>
+                            <span>${employee.position || '-'}</span>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">แผนก:</span>
+                            <span>${employee.department || '-'}</span>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">สถานะ:</span>
+                            <span class="status-badge status-${employee.status || 'active'}">${employee.status === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}</span>
+                        </div>
+                    </div>
+                    <div class="mobile-card-actions">
+                        <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.id})">
+                            <i class="fas fa-edit"></i> แก้ไข
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${employee.id})">
+                            <i class="fas fa-trash"></i> ลบ
+                        </button>
+                    </div>
+                `;
+                mobileCardsContainer.appendChild(card);
             });
+
+        } catch (error) {
+            showAlert('employeesAlert', error.message, 'error');
+        }
+    }
+
+    // User CRUD Operations
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = {
+            username: document.getElementById('userUsername').value,
+            email: document.getElementById('userEmail').value,
+            password: document.getElementById('userPassword').value,
+            role: document.getElementById('userRole').value,
+            full_name: document.getElementById('userFullName').value,
+            phone: document.getElementById('userPhone').value,
+            department: document.getElementById('userDepartment').value
+        };
+
+        try {
+            if (currentEditId) {
+                await apiCall(`/users/${currentEditId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(formData)
+                });
+                showAlert('usersAlert', 'อัปเดตผู้ใช้งานสำเร็จ', 'success');
+            } else {
+                await apiCall('/users', {
+                    method: 'POST',
+                    body: JSON.stringify(formData)
+                });
+                showAlert('usersAlert', 'เพิ่มผู้ใช้งานสำเร็จ', 'success');
+            }
+
+            closeModal('userModal');
+            loadUsers();
+        } catch (error) {
+            showAlert('usersAlert', error.message, 'error');
+        }
+    });
+
+    async function editUser(id) {
+        try {
+            const users = await apiCall('/users');
+            const user = users.find(u => u.id === id);
+
+            if (user) {
+                currentEditId = id;
+                currentEditType = 'user';
+
+                document.getElementById('userModalTitle').textContent = 'แก้ไขผู้ใช้งาน';
+                document.getElementById('userUsername').value = user.username;
+                document.getElementById('userEmail').value = user.email;
+                document.getElementById('userPassword').value = '';
+                document.getElementById('userRole').value = user.role;
+                document.getElementById('userFullName').value = user.full_name;
+                document.getElementById('userPhone').value = user.phone || '';
+                document.getElementById('userDepartment').value = user.department || '';
+
+                document.getElementById('userPassword').required = false;
+                openModal('userModal');
+            }
+        } catch (error) {
+            showAlert('usersAlert', error.message, 'error');
+        }
+    }
+
+    async function deleteUser(id) {
+        if (confirm('คุณต้องการลบผู้ใช้งานนี้หรือไม่?')) {
+            try {
+                await apiCall(`/users/${id}`, { method: 'DELETE' });
+                showAlert('usersAlert', 'ลบผู้ใช้งานสำเร็จ', 'success');
+                loadUsers();
+            } catch (error) {
+                showAlert('usersAlert', error.message, 'error');
+            }
+        }
+    }
+
+    // Customer CRUD Operations
+    document.getElementById('customerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = {
+            customer_name: document.getElementById('customerName').value.trim(),
+            company_name: document.getElementById('companyName').value.trim(),
+            email: document.getElementById('customerEmail').value.trim(),
+            phone: document.getElementById('customerPhone').value.trim(),
+            address: document.getElementById('customerAddress').value.trim(),
+            contact_person: document.getElementById('contactPerson').value.trim(),
+            status: document.getElementById('customerStatus').value
+        };
+
+        if (!formData.customer_name) {
+            showAlert('customersAlert', 'กรุณากรอกชื่อลูกค้า', 'error');
+            return;
         }
 
-        // Check if user is already logged in
-        window.addEventListener('load', async () => {
-            const token = getToken();
-            if (token) {
-                try {
-                    const user = await apiCall('/me');
-                    currentUser = user;
-                    document.getElementById('loginContainer').style.display = 'none';
-                    document.getElementById('mainApp').style.display = 'block';
-                    initializeApp();
-                } catch (error) {
-                    removeToken();
+        try {
+            if (currentEditId) {
+                await apiCall(`/customers/${currentEditId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(formData)
+                });
+                showAlert('customersAlert', 'อัปเดตลูกค้าสำเร็จ', 'success');
+            } else {
+                await apiCall('/customers', {
+                    method: 'POST',
+                    body: JSON.stringify(formData)
+                });
+                showAlert('customersAlert', 'เพิ่มลูกค้าสำเร็จ', 'success');
+            }
+
+            closeModal('customerModal');
+            loadCustomers();
+        } catch (error) {
+            showAlert('customersAlert', error.message, 'error');
+        }
+    });
+
+    async function editCustomer(id) {
+        try {
+            const customers = await apiCall('/customers');
+            const customer = customers.find(c => c.id === id);
+
+            if (customer) {
+                currentEditId = id;
+                currentEditType = 'customer';
+
+                document.getElementById('customerModalTitle').textContent = 'แก้ไขลูกค้า';
+                document.getElementById('customerName').value = customer.customer_name || '';
+                document.getElementById('companyName').value = customer.company_name || '';
+                document.getElementById('customerEmail').value = customer.email || '';
+                document.getElementById('customerPhone').value = customer.phone || '';
+                document.getElementById('customerAddress').value = customer.address || '';
+                document.getElementById('contactPerson').value = customer.contact_person || '';
+                document.getElementById('customerStatus').value = customer.status || 'active';
+
+                openModal('customerModal');
+            } else {
+                throw new Error('ไม่พบข้อมูลลูกค้าที่ต้องการแก้ไข');
+            }
+        } catch (error) {
+            showAlert('customersAlert', error.message, 'error');
+        }
+    }
+
+    async function deleteCustomer(id) {
+        if (confirm('คุณต้องการลบลูกค้านี้หรือไม่?')) {
+            try {
+                await apiCall(`/customers/${id}`, { method: 'DELETE' });
+                showAlert('customersAlert', 'ลบลูกค้าสำเร็จ', 'success');
+                loadCustomers();
+            } catch (error) {
+                showAlert('customersAlert', error.message, 'error');
+            }
+        }
+    }
+
+    // Employee CRUD Operations
+    document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = {
+            employee_id: document.getElementById('employeeId').value.trim(),
+            first_name: document.getElementById('firstName').value.trim(),
+            last_name: document.getElementById('lastName').value.trim(),
+            email: document.getElementById('employeeEmail').value.trim(),
+            phone: document.getElementById('employeePhone').value.trim(),
+            position: document.getElementById('position').value.trim(),
+            department: document.getElementById('employeeDepartment').value.trim(),
+            salary: document.getElementById('salary').value,
+            hire_date: document.getElementById('hireDate').value,
+            status: document.getElementById('employeeStatus').value
+        };
+
+        if (!formData.employee_id || !formData.first_name || !formData.last_name) {
+            showAlert('employeesAlert', 'กรุณากรอกรหัสพนักงาน ชื่อ และนามสกุล', 'error');
+            return;
+        }
+
+        try {
+            if (currentEditId) {
+                await apiCall(`/employees/${currentEditId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(formData)
+                });
+                showAlert('employeesAlert', 'อัปเดตพนักงานสำเร็จ', 'success');
+            } else {
+                await apiCall('/employees', {
+                    method: 'POST',
+                    body: JSON.stringify(formData)
+                });
+                showAlert('employeesAlert', 'เพิ่มพนักงานสำเร็จ', 'success');
+            }
+
+            closeModal('employeeModal');
+            loadEmployees();
+        } catch (error) {
+            showAlert('employeesAlert', error.message, 'error');
+        }
+    });
+
+    async function editEmployee(id) {
+        try {
+            const employees = await apiCall('/employees');
+            const employee = employees.find(e => e.id === id);
+
+            if (employee) {
+                currentEditId = id;
+                currentEditType = 'employee';
+
+                document.getElementById('employeeModalTitle').textContent = 'แก้ไขพนักงาน';
+                document.getElementById('employeeId').value = employee.employee_id || '';
+                document.getElementById('firstName').value = employee.first_name || '';
+                document.getElementById('lastName').value = employee.last_name || '';
+                document.getElementById('employeeEmail').value = employee.email || '';
+                document.getElementById('employeePhone').value = employee.phone || '';
+                document.getElementById('position').value = employee.position || '';
+                document.getElementById('employeeDepartment').value = employee.department || '';
+                document.getElementById('salary').value = employee.salary || '';
+
+                // แปลงรูปแบบวันที่ให้ถูกต้องสำหรับ input[type="date"]
+                if (employee.hire_date) {
+                    const hireDate = new Date(employee.hire_date);
+                    if (!isNaN(hireDate.getTime())) {
+                        const formattedDate = hireDate.toISOString().split('T')[0];
+                        document.getElementById('hireDate').value = formattedDate;
+                    } else {
+                        document.getElementById('hireDate').value = '';
+                    }
+                } else {
+                    document.getElementById('hireDate').value = '';
                 }
+
+                document.getElementById('employeeStatus').value = employee.status || 'active';
+
+                openModal('employeeModal');
+            } else {
+                throw new Error('ไม่พบข้อมูลพนักงานที่ต้องการแก้ไข');
+            }
+        } catch (error) {
+            showAlert('employeesAlert', error.message, 'error');
+        }
+    }
+
+    async function deleteEmployee(id) {
+        if (confirm('คุณต้องการลบพนักงานนี้หรือไม่?')) {
+            try {
+                await apiCall(`/employees/${id}`, { method: 'DELETE' });
+                showAlert('employeesAlert', 'ลบพนักงานสำเร็จ', 'success');
+                loadEmployees();
+            } catch (error) {
+                showAlert('employeesAlert', error.message, 'error');
+            }
+        }
+    }
+
+    // Utility functions
+    function getRoleText(role) {
+        const roles = {
+            'admin': 'แอดมิน',
+            'sales': 'ฝ่ายขาย',
+            'hr': 'ฝ่ายบุคคล'
+        };
+        return roles[role] || role;
+    }
+
+    function showAlert(containerId, message, type) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        setTimeout(() => {
+            container.innerHTML = '';
+        }, 5000);
+    }
+
+    function openModal(modalId) {
+        document.getElementById(modalId).style.display = 'block';
+
+        // เคลียร์ alert เก่า
+        if (modalId === 'customerModal') {
+            document.getElementById('customersAlert').innerHTML = '';
+        } else if (modalId === 'employeeModal') {
+            document.getElementById('employeesAlert').innerHTML = '';
+        } else if (modalId === 'userModal') {
+            document.getElementById('usersAlert').innerHTML = '';
+        }
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+        currentEditId = null;
+        currentEditType = null;
+
+        // Reset forms
+        document.getElementById('userForm').reset();
+        document.getElementById('customerForm').reset();
+        document.getElementById('employeeForm').reset();
+
+        // Reset modal titles
+        document.getElementById('userModalTitle').textContent = 'เพิ่มผู้ใช้งาน';
+        document.getElementById('customerModalTitle').textContent = 'เพิ่มลูกค้า';
+        document.getElementById('employeeModalTitle').textContent = 'เพิ่มพนักงาน';
+
+        // Reset password requirement
+        document.getElementById('userPassword').required = true;
+    }
+
+    function logout() {
+        removeToken();
+        currentUser = null;
+        document.getElementById('loginContainer').style.display = 'flex';
+        document.getElementById('mainApp').style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function (event) {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
             }
         });
-    </script>
+    }
+
+    // Check if user is already logged in
+    window.addEventListener('load', async () => {
+        const token = getToken();
+        if (token) {
+            try {
+                const user = await apiCall('/me');
+                currentUser = user;
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                initializeApp();
+            } catch (error) {
+                removeToken();
+            }
+        }
+    });
+</script>
 </body>
 
 </html>
