@@ -699,7 +699,7 @@
     </div>
 
     <!-- User Modal -->
-    <div id="userModal" class="modal" style="display: none;">
+    <div id="userModal" class="modal" >
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="userModalTitle">เพิ่มผู้ใช้งาน</h3>
@@ -1067,11 +1067,11 @@
             const users = await apiCall('/users');
             const tbody = document.getElementById('usersTable');
             tbody.innerHTML = '';
-                        let mobileCardsContainer = document.querySelector('#userModal .mobile-cards');
+                        let mobileCardsContainer = document.querySelector('#customersSection .mobile-cards');
             if (!mobileCardsContainer) {
                 mobileCardsContainer = document.createElement('div');
                 mobileCardsContainer.className = 'mobile-cards';
-                document.querySelector('#userModal .table-container').appendChild(mobileCardsContainer);
+                document.querySelector('#customersSection .table-container').appendChild(mobileCardsContainer);
             }
             mobileCardsContainer.innerHTML = '';
 
