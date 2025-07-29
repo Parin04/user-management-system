@@ -73,47 +73,47 @@ const authenticateToken = (req, res, next) => {
 };
 
 // เพิ่ม API สำหรับตรวจสอบ users (debug)
-app.get('/api/debug/all-users', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT id, username, role, full_name, created_at FROM users ORDER BY role, username');
-        res.json({
-            success: true,
-            users: result.rows,
-            count: result.rows.length
-        });
-    } catch (err) {
-        console.error('Debug users error:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
+// app.get('/api/debug/all-users', async (req, res) => {
+//     try {
+//         const result = await pool.query('SELECT id, username, role, full_name, created_at FROM users ORDER BY role, username');
+//         res.json({
+//             success: true,
+//             users: result.rows,
+//             count: result.rows.length
+//         });
+//     } catch (err) {
+//         console.error('Debug users error:', err);
+//         res.status(500).json({ error: err.message });
+//     }
+// });
 
-// เพิ่ม API สำหรับสร้าง default users ใหม่
-app.post('/api/debug/recreate-users', async (req, res) => {
-    try {
-        // ลบผู้ใช้งานเก่า (ยกเว้น admin)
-        await pool.query('DELETE FROM users WHERE username IN ($1, $2)', ['sales01', 'hr01']);
+// // เพิ่ม API สำหรับสร้าง default users ใหม่
+// app.post('/api/debug/recreate-users', async (req, res) => {
+//     try {
+//         // ลบผู้ใช้งานเก่า (ยกเว้น admin)
+//         await pool.query('DELETE FROM users WHERE username IN ($1, $2)', ['sales01', 'hr01']);
         
-        // สร้างผู้ใช้งานใหม่
-        const salesPassword = await bcrypt.hash('sales123', 10);
-        const hrPassword = await bcrypt.hash('hr123', 10);
+//         // สร้างผู้ใช้งานใหม่
+//         const salesPassword = await bcrypt.hash('sales123', 10);
+//         const hrPassword = await bcrypt.hash('hr123', 10);
 
-        await pool.query(`
-            INSERT INTO users (username, email, password, role, full_name, department) VALUES 
-            ('sales01', 'sales@company.com', $1, 'sales', 'พนักงานขาย', 'Sales'),
-            ('hr01', 'hr@company.com', $2, 'hr', 'พนักงานบุคคล', 'HR')
-        `, [salesPassword, hrPassword]);
+//         await pool.query(`
+//             INSERT INTO users (username, email, password, role, full_name, department) VALUES 
+//             ('sales01', 'sales@company.com', $1, 'sales', 'พนักงานขาย', 'Sales'),
+//             ('hr01', 'hr@company.com', $2, 'hr', 'พนักงานบุคคล', 'HR')
+//         `, [salesPassword, hrPassword]);
 
-        console.log('✅ Recreated sales and hr users');
+//         console.log('✅ Recreated sales and hr users');
         
-        res.json({ 
-            success: true, 
-            message: 'สร้างผู้ใช้งาน sales01 และ hr01 ใหม่เรียบร้อย' 
-        });
-    } catch (err) {
-        console.error('Recreate users error:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
+//         res.json({ 
+//             success: true, 
+//             message: 'สร้างผู้ใช้งาน sales01 และ hr01 ใหม่เรียบร้อย' 
+//         });
+//     } catch (err) {
+//         console.error('Recreate users error:', err);
+//         res.status(500).json({ error: err.message });
+//     }
+// });
 
 
 const authorize = (roles) => {
@@ -141,18 +141,18 @@ const authorize = (roles) => {
         next();
     };
 };
-// 3. เพิ่ม Debug Endpoint (ลบออกหลังแก้ปัญหาแล้ว)
-app.get('/api/debug/auth', authenticateToken, (req, res) => {
-    res.json({
-        user: req.user,
-        timestamp: new Date().toISOString()
-    });
-});
+// // 3. เพิ่ม Debug Endpoint (ลบออกหลังแก้ปัญหาแล้ว)
+// app.get('/api/debug/auth', authenticateToken, (req, res) => {
+//     res.json({
+//         user: req.user,
+//         timestamp: new Date().toISOString()
+//     });
+// });
 
-// หน้าหลัก
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// // หน้าหลัก
+// app.get('/', (req, res) => {
+//     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// });
 
 // Login
 app.post('/api/login', async (req, res) => {
@@ -216,7 +216,6 @@ app.get('/api/me', authenticateToken, (req, res) => {
     res.json(req.user);
 });
 
-// === ADMIN ROUTES (Users Management) ===
 // Get all users
 app.get('/api/users', authenticateToken, authorize(['admin']), async (req, res) => {
     try {
@@ -292,6 +291,7 @@ app.delete('/api/users/:id', authenticateToken, authorize(['admin']), async (req
         res.status(500).json({ error: 'Server error' });
     }
 });
+
 // แก้ไข customers API
 app.get('/api/customers', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
@@ -480,50 +480,51 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
         res.status(500).json({ error: 'ไม่สามารถลบพนักงานได้', details: err.message });
     }
 });
-// เพิ่ม API สำหรับใส่ข้อมูลตัวอย่าง
-app.post('/api/debug/seed-data', authenticateToken, authorize(['admin']), async (req, res) => {
-    try {
-        // เพิ่มข้อมูลลูกค้าตัวอย่าง
-        await pool.query(`
-            INSERT INTO customers (customer_name, company_name, email, phone, status, created_by) VALUES 
-            ('นายสมชาย ใจดี', 'บริษัท ABC จำกัด', 'somchai@abc.com', '02-123-4567', 'active', 1),
-            ('นางสาวสุดา เก่ง', 'บริษัท XYZ จำกัด', 'suda@xyz.com', '02-234-5678', 'active', 1),
-            ('นายปรีชา รู้ดี', 'บริษัท DEF จำกัด', 'preecha@def.com', '02-345-6789', 'active', 1)
-            ON CONFLICT DO NOTHING
-        `);
+
+// // เพิ่ม API สำหรับใส่ข้อมูลตัวอย่าง
+// app.post('/api/debug/seed-data', authenticateToken, authorize(['admin']), async (req, res) => {
+//     try {
+//         // เพิ่มข้อมูลลูกค้าตัวอย่าง
+//         await pool.query(`
+//             INSERT INTO customers (customer_name, company_name, email, phone, status, created_by) VALUES 
+//             ('นายสมชาย ใจดี', 'บริษัท ABC จำกัด', 'somchai@abc.com', '02-123-4567', 'active', 1),
+//             ('นางสาวสุดา เก่ง', 'บริษัท XYZ จำกัด', 'suda@xyz.com', '02-234-5678', 'active', 1),
+//             ('นายปรีชา รู้ดี', 'บริษัท DEF จำกัด', 'preecha@def.com', '02-345-6789', 'active', 1)
+//             ON CONFLICT DO NOTHING
+//         `);
         
-        // เพิ่มข้อมูลพนักงานตัวอย่าง
-        await pool.query(`
-            INSERT INTO employees (employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status, created_by) VALUES 
-            ('EMP001', 'สมศักดิ์', 'ใจดี', 'somsak@company.com', '081-123-4567', 'เจ้าหน้าที่ขาย', 'Sales', 25000, '2023-01-15', 'active', 1),
-            ('EMP002', 'วิมล', 'ใจใส', 'wimon@company.com', '081-234-5678', 'เจ้าหน้าที่บุคคล', 'HR', 28000, '2023-02-01', 'active', 1),
-            ('EMP003', 'ราชัน', 'ขยัน', 'rachan@company.com', '081-345-6789', 'นักบัญชี', 'Accounting', 30000, '2023-03-01', 'active', 1)
-            ON CONFLICT DO NOTHING
-        `);
+//         // เพิ่มข้อมูลพนักงานตัวอย่าง
+//         await pool.query(`
+//             INSERT INTO employees (employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status, created_by) VALUES 
+//             ('EMP001', 'สมศักดิ์', 'ใจดี', 'somsak@company.com', '081-123-4567', 'เจ้าหน้าที่ขาย', 'Sales', 25000, '2023-01-15', 'active', 1),
+//             ('EMP002', 'วิมล', 'ใจใส', 'wimon@company.com', '081-234-5678', 'เจ้าหน้าที่บุคคล', 'HR', 28000, '2023-02-01', 'active', 1),
+//             ('EMP003', 'ราชัน', 'ขยัน', 'rachan@company.com', '081-345-6789', 'นักบัญชี', 'Accounting', 30000, '2023-03-01', 'active', 1)
+//             ON CONFLICT DO NOTHING
+//         `);
         
-        res.json({ message: 'เพิ่มข้อมูลตัวอย่างเรียบร้อยแล้ว' });
-    } catch (err) {
-        console.error('Seed data error:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-// app.listen(PORT, () => {
-//     console.log(`Server running on port ${PORT}`);
+//         res.json({ message: 'เพิ่มข้อมูลตัวอย่างเรียบร้อยแล้ว' });
+//     } catch (err) {
+//         console.error('Seed data error:', err);
+//         res.status(500).json({ error: err.message });
+//     }
 // });
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
 
 // ให้เหลือแค่ startServer function นี้เท่านั้น
-const { initializeDatabase } = require('./init-db');
+// const { initializeDatabase } = require('./init-db');
 
-async function startServer() {
-    try {
-        await initializeDatabase();
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
-    } catch (error) {
-        console.error('Failed to start server:', error);
-        process.exit(1);
-    }
-}
+// async function startServer() {
+//     try {
+//         await initializeDatabase();
+//         app.listen(PORT, () => {
+//             console.log(`Server running on port ${PORT}`);
+//         });
+//     } catch (error) {
+//         console.error('Failed to start server:', error);
+//         process.exit(1);
+//     }
+// }
 
-startServer();
+// startServer();
