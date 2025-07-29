@@ -481,23 +481,23 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
     }
 });
 
-// app.listen(PORT, () => {
-//     console.log(`Server running on port ${PORT}`);
-// });
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
 
 // ให้เหลือแค่ startServer function นี้เท่านั้น
-const { initializeDatabase } = require('./init-db');
+// const { initializeDatabase } = require('./init-db');
 
-async function startServer() {
-    try {
-        await initializeDatabase();
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
-    } catch (error) {
-        console.error('Failed to start server:', error);
-        process.exit(1);
-    }
-}
+// async function startServer() {
+//     try {
+//         await initializeDatabase();
+//         app.listen(PORT, () => {
+//             console.log(`Server running on port ${PORT}`);
+//         });
+//     } catch (error) {
+//         console.error('Failed to start server:', error);
+//         process.exit(1);
+//     }
+// }
 
-startServer();
+// startServer();
