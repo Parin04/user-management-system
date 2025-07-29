@@ -1,4 +1,3 @@
-
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
@@ -15,7 +14,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Database connection
+// เพิ่ม logging สำหรับ debug
+console.log('🔍 Environment check:');
+console.log('- NODE_ENV:', process.env.NODE_ENV);
+console.log('- DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('- DB_HOST:', process.env.DB_HOST);
+console.log('- DB_NAME:', process.env.DB_NAME);
+console.log('- DB_USER:', process.env.DB_USER);
+
+// Database connection - แก้ไขการเชื่อมต่อ
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
   ssl: process.env.NODE_ENV === 'production' ? {
@@ -23,17 +30,121 @@ const pool = new Pool({
   } : false
 });
 
-// const pool = new Pool({
-//   user: process.env.DB_USER,
-//   password: process.env.DB_PASSWORD,
-//   host: process.env.DB_HOST,
-//   port: Number(process.env.DB_PORT),
-//   database: process.env.DB_NAME,
-// });
-
+// ทดสอบการเชื่อมต่อฐานข้อมูล
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ Database connection error:', err.message);
+  } else {
+    console.log('✅ Database connected successfully');
+    release();
+  }
+});
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'my-super-secret-jwt-key-2024';
+
+// เพิ่ม function สำหรับสร้างตารางและข้อมูลเริ่มต้น
+async function initializeDatabase() {
+  try {
+    console.log('🔍 Initializing database...');
+    
+    // สร้างตาราง users
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'user',
+        full_name VARCHAR(100),
+        phone VARCHAR(20),
+        department VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // สร้างตาราง customers
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id SERIAL PRIMARY KEY,
+        customer_name VARCHAR(100) NOT NULL,
+        company_name VARCHAR(100),
+        email VARCHAR(100),
+        phone VARCHAR(20),
+        address TEXT,
+        contact_person VARCHAR(100),
+        status VARCHAR(20) DEFAULT 'active',
+        created_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // สร้างตาราง employees
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS employees (
+        id SERIAL PRIMARY KEY,
+        employee_id VARCHAR(20) UNIQUE NOT NULL,
+        first_name VARCHAR(50) NOT NULL,
+        last_name VARCHAR(50) NOT NULL,
+        email VARCHAR(100) UNIQUE,
+        phone VARCHAR(20),
+        position VARCHAR(100),
+        department VARCHAR(50),
+        salary DECIMAL(10,2),
+        hire_date DATE,
+        status VARCHAR(20) DEFAULT 'active',
+        created_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // ตรวจสอบว่ามี admin user หรือไม่
+    const adminCheck = await pool.query('SELECT * FROM users WHERE username = $1', ['admin']);
+    
+    if (adminCheck.rows.length === 0) {
+      console.log('🔍 Creating default admin user...');
+      
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await pool.query(`
+        INSERT INTO users (username, email, password, role, full_name, department) 
+        VALUES ('admin', 'admin@company.com', $1, 'admin', 'System Administrator', 'IT')
+      `, [hashedPassword]);
+      
+      console.log('✅ Default admin user created (username: admin, password: admin123)');
+    }
+    
+    // สร้างผู้ใช้งานตัวอย่าง
+    const salesCheck = await pool.query('SELECT * FROM users WHERE username = $1', ['sales01']);
+    const hrCheck = await pool.query('SELECT * FROM users WHERE username = $1', ['hr01']);
+    
+    if (salesCheck.rows.length === 0) {
+      const salesPassword = await bcrypt.hash('sales123', 10);
+      await pool.query(`
+        INSERT INTO users (username, email, password, role, full_name, department) 
+        VALUES ('sales01', 'sales@company.com', $1, 'sales', 'พนักงานขาย', 'Sales')
+      `, [salesPassword]);
+      console.log('✅ Sales user created (username: sales01, password: sales123)');
+    }
+    
+    if (hrCheck.rows.length === 0) {
+      const hrPassword = await bcrypt.hash('hr123', 10);
+      await pool.query(`
+        INSERT INTO users (username, email, password, role, full_name, department) 
+        VALUES ('hr01', 'hr@company.com', $1, 'hr', 'พนักงานบุคคล', 'HR')
+      `, [hrPassword]);
+      console.log('✅ HR user created (username: hr01, password: hr123)');
+    }
+    
+    console.log('✅ Database initialization completed');
+    
+  } catch (err) {
+    console.error('❌ Database initialization error:', err);
+    throw err;
+  }
+}
 
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -72,56 +183,11 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// เพิ่ม API สำหรับตรวจสอบ users (debug)
-// app.get('/api/debug/all-users', async (req, res) => {
-//     try {
-//         const result = await pool.query('SELECT id, username, role, full_name, created_at FROM users ORDER BY role, username');
-//         res.json({
-//             success: true,
-//             users: result.rows,
-//             count: result.rows.length
-//         });
-//     } catch (err) {
-//         console.error('Debug users error:', err);
-//         res.status(500).json({ error: err.message });
-//     }
-// });
-
-// // เพิ่ม API สำหรับสร้าง default users ใหม่
-// app.post('/api/debug/recreate-users', async (req, res) => {
-//     try {
-//         // ลบผู้ใช้งานเก่า (ยกเว้น admin)
-//         await pool.query('DELETE FROM users WHERE username IN ($1, $2)', ['sales01', 'hr01']);
-        
-//         // สร้างผู้ใช้งานใหม่
-//         const salesPassword = await bcrypt.hash('sales123', 10);
-//         const hrPassword = await bcrypt.hash('hr123', 10);
-
-//         await pool.query(`
-//             INSERT INTO users (username, email, password, role, full_name, department) VALUES 
-//             ('sales01', 'sales@company.com', $1, 'sales', 'พนักงานขาย', 'Sales'),
-//             ('hr01', 'hr@company.com', $2, 'hr', 'พนักงานบุคคล', 'HR')
-//         `, [salesPassword, hrPassword]);
-
-//         console.log('✅ Recreated sales and hr users');
-        
-//         res.json({ 
-//             success: true, 
-//             message: 'สร้างผู้ใช้งาน sales01 และ hr01 ใหม่เรียบร้อย' 
-//         });
-//     } catch (err) {
-//         console.error('Recreate users error:', err);
-//         res.status(500).json({ error: err.message });
-//     }
-// });
-
-
 const authorize = (roles) => {
     return (req, res, next) => {
         console.log('🔍 Authorization check:');
         console.log('- User role:', req.user.role);
         console.log('- Required roles:', roles);
-        console.log('- User object:', req.user);
         
         if (!req.user.role) {
             console.log('❌ No role found in user object');
@@ -141,25 +207,39 @@ const authorize = (roles) => {
         next();
     };
 };
-// // 3. เพิ่ม Debug Endpoint (ลบออกหลังแก้ปัญหาแล้ว)
-// app.get('/api/debug/auth', authenticateToken, (req, res) => {
-//     res.json({
-//         user: req.user,
-//         timestamp: new Date().toISOString()
-//     });
-// });
 
-// // หน้าหลัก
-// app.get('/', (req, res) => {
-//     res.sendFile(path.join(__dirname, 'public', 'index.html'));
-// });
+// เพิ่ม API สำหรับตรวจสอบสถานะระบบ
+app.get('/api/health', async (req, res) => {
+    try {
+        const dbTest = await pool.query('SELECT NOW()');
+        res.json({
+            status: 'OK',
+            timestamp: new Date().toISOString(),
+            database: 'Connected',
+            dbTime: dbTest.rows[0].now
+        });
+    } catch (err) {
+        console.error('Health check error:', err);
+        res.status(500).json({
+            status: 'ERROR',
+            timestamp: new Date().toISOString(),
+            database: 'Disconnected',
+            error: err.message
+        });
+    }
+});
 
-// Login
+// Login - เพิ่ม error handling ที่ดีขึ้น
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         
         console.log('🔍 Login attempt:', username);
+        
+        // ตรวจสอบ input
+        if (!username || !password) {
+            return res.status(400).json({ error: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน' });
+        }
         
         const result = await pool.query(
             'SELECT * FROM users WHERE username = $1',
@@ -190,7 +270,6 @@ app.post('/api/login', async (req, res) => {
         
         console.log('🔍 Creating token with payload:', tokenPayload);
         
-        // เพิ่มเวลา token ให้ยาวขึ้น
         const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
 
         console.log('✅ Login successful for:', username, 'role:', user.role);
@@ -207,7 +286,10 @@ app.post('/api/login', async (req, res) => {
         });
     } catch (err) {
         console.error('❌ Login error:', err);
-        res.status(500).json({ error: 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์' });
+        res.status(500).json({ 
+            error: 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์',
+            details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
     }
 });
 
@@ -224,7 +306,7 @@ app.get('/api/users', authenticateToken, authorize(['admin']), async (req, res) 
         );
         res.json(result.rows);
     } catch (err) {
-        console.error(err);
+        console.error('Get users error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -243,7 +325,7 @@ app.post('/api/users', authenticateToken, authorize(['admin']), async (req, res)
         
         res.status(201).json(result.rows[0]);
     } catch (err) {
-        console.error(err);
+        console.error('Create user error:', err);
         if (err.code === '23505') {
             res.status(400).json({ error: 'Username or email already exists' });
         } else {
@@ -269,7 +351,7 @@ app.put('/api/users/:id', authenticateToken, authorize(['admin']), async (req, r
         
         res.json(result.rows[0]);
     } catch (err) {
-        console.error(err);
+        console.error('Update user error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -287,12 +369,12 @@ app.delete('/api/users/:id', authenticateToken, authorize(['admin']), async (req
         
         res.json({ message: 'User deleted successfully' });
     } catch (err) {
-        console.error(err);
+        console.error('Delete user error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-// แก้ไข customers API
+// Customers API
 app.get('/api/customers', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
         console.log('🔍 Customers API called by:', req.user.username, 'role:', req.user.role);
@@ -305,8 +387,6 @@ app.get('/api/customers', authenticateToken, authorize(['sales', 'admin']), asyn
         `);
         
         console.log('✅ Customers data retrieved:', result.rows.length, 'records');
-        
-        // ถ้าไม่มีข้อมูล ให้ส่ง array ว่าง
         res.json(result.rows || []);
     } catch (err) {
         console.error('❌ Customers API error:', err);
@@ -316,8 +396,6 @@ app.get('/api/customers', authenticateToken, authorize(['sales', 'admin']), asyn
 
 app.post('/api/customers', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
-        console.log('🔍 Creating customer:', req.body);
-        
         const { customer_name, company_name, email, phone, address, contact_person, status } = req.body;
         
         if (!customer_name) {
@@ -330,7 +408,6 @@ app.post('/api/customers', authenticateToken, authorize(['sales', 'admin']), asy
             RETURNING *
         `, [customer_name, company_name, email, phone, address, contact_person, status || 'active', req.user.id]);
         
-        console.log('✅ Customer created:', result.rows[0]);
         res.status(201).json(result.rows[0]);
     } catch (err) {
         console.error('❌ Create customer error:', err);
@@ -338,7 +415,6 @@ app.post('/api/customers', authenticateToken, authorize(['sales', 'admin']), asy
     }
 });
 
-// Update customer
 app.put('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
         const { id } = req.params;
@@ -355,12 +431,11 @@ app.put('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']), 
         
         res.json(result.rows[0]);
     } catch (err) {
-        console.error(err);
+        console.error('Update customer error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
-// Delete customer
 app.delete('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']), async (req, res) => {
     try {
         const { id } = req.params;
@@ -373,11 +448,12 @@ app.delete('/api/customers/:id', authenticateToken, authorize(['sales', 'admin']
         
         res.json({ message: 'Customer deleted successfully' });
     } catch (err) {
-        console.error(err);
+        console.error('Delete customer error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
-// แก้ไข employees API
+
+// Employees API
 app.get('/api/employees', authenticateToken, authorize(['hr', 'admin']), async (req, res) => {
     try {
         console.log('🔍 Employees API called by:', req.user.username, 'role:', req.user.role);
@@ -390,8 +466,6 @@ app.get('/api/employees', authenticateToken, authorize(['hr', 'admin']), async (
         `);
         
         console.log('✅ Employees data retrieved:', result.rows.length, 'records');
-        
-        // ถ้าไม่มีข้อมูล ให้ส่ง array ว่าง
         res.json(result.rows || []);
     } catch (err) {
         console.error('❌ Employees API error:', err);
@@ -401,8 +475,6 @@ app.get('/api/employees', authenticateToken, authorize(['hr', 'admin']), async (
 
 app.post('/api/employees', authenticateToken, authorize(['hr', 'admin']), async (req, res) => {
     try {
-        console.log('🔍 Creating employee:', req.body);
-        
         const { employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status } = req.body;
         
         if (!employee_id || !first_name || !last_name) {
@@ -415,7 +487,6 @@ app.post('/api/employees', authenticateToken, authorize(['hr', 'admin']), async 
             RETURNING *
         `, [employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status || 'active', req.user.id]);
         
-        console.log('✅ Employee created:', result.rows[0]);
         res.status(201).json(result.rows[0]);
     } catch (err) {
         console.error('❌ Create employee error:', err);
@@ -433,8 +504,6 @@ app.put('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), asy
         const { id } = req.params;
         const { employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status } = req.body;
         
-        console.log('🔍 Updating employee ID:', id, 'Data:', req.body);
-        
         const result = await pool.query(`
             UPDATE employees 
             SET employee_id = $1, first_name = $2, last_name = $3, email = $4, phone = $5, 
@@ -448,7 +517,6 @@ app.put('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), asy
             return res.status(404).json({ error: 'ไม่พบพนักงานที่ต้องการแก้ไข' });
         }
         
-        console.log('✅ Employee updated:', result.rows[0]);
         res.json(result.rows[0]);
     } catch (err) {
         console.error('❌ Update employee error:', err);
@@ -465,15 +533,12 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
     try {
         const { id } = req.params;
         
-        console.log('🔍 Deleting employee ID:', id);
-        
         const result = await pool.query('DELETE FROM employees WHERE id = $1 RETURNING id', [id]);
         
         if (result.rowCount === 0) {
             return res.status(404).json({ error: 'ไม่พบพนักงานที่ต้องการลบ' });
         }
         
-        console.log('✅ Employee deleted:', id);
         res.json({ message: 'ลบพนักงานเรียบร้อยแล้ว', id: id });
     } catch (err) {
         console.error('❌ Delete employee error:', err);
@@ -481,23 +546,18 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// เริ่มต้นเซิร์ฟเวอร์
+async function startServer() {
+    try {
+        await initializeDatabase();
+        app.listen(PORT, () => {
+            console.log(`✅ Server running on port ${PORT}`);
+            console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+        });
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        process.exit(1);
+    }
+}
 
-// ให้เหลือแค่ startServer function นี้เท่านั้น
-// const { initializeDatabase } = require('./init-db');
-
-// async function startServer() {
-//     try {
-//         await initializeDatabase();
-//         app.listen(PORT, () => {
-//             console.log(`Server running on port ${PORT}`);
-//         });
-//     } catch (error) {
-//         console.error('Failed to start server:', error);
-//         process.exit(1);
-//     }
-// }
-
-// startServer();
+startServer();
