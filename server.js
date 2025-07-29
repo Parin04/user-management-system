@@ -481,33 +481,6 @@ app.delete('/api/employees/:id', authenticateToken, authorize(['hr', 'admin']), 
     }
 });
 
-// // เพิ่ม API สำหรับใส่ข้อมูลตัวอย่าง
-// app.post('/api/debug/seed-data', authenticateToken, authorize(['admin']), async (req, res) => {
-//     try {
-//         // เพิ่มข้อมูลลูกค้าตัวอย่าง
-//         await pool.query(`
-//             INSERT INTO customers (customer_name, company_name, email, phone, status, created_by) VALUES 
-//             ('นายสมชาย ใจดี', 'บริษัท ABC จำกัด', 'somchai@abc.com', '02-123-4567', 'active', 1),
-//             ('นางสาวสุดา เก่ง', 'บริษัท XYZ จำกัด', 'suda@xyz.com', '02-234-5678', 'active', 1),
-//             ('นายปรีชา รู้ดี', 'บริษัท DEF จำกัด', 'preecha@def.com', '02-345-6789', 'active', 1)
-//             ON CONFLICT DO NOTHING
-//         `);
-        
-//         // เพิ่มข้อมูลพนักงานตัวอย่าง
-//         await pool.query(`
-//             INSERT INTO employees (employee_id, first_name, last_name, email, phone, position, department, salary, hire_date, status, created_by) VALUES 
-//             ('EMP001', 'สมศักดิ์', 'ใจดี', 'somsak@company.com', '081-123-4567', 'เจ้าหน้าที่ขาย', 'Sales', 25000, '2023-01-15', 'active', 1),
-//             ('EMP002', 'วิมล', 'ใจใส', 'wimon@company.com', '081-234-5678', 'เจ้าหน้าที่บุคคล', 'HR', 28000, '2023-02-01', 'active', 1),
-//             ('EMP003', 'ราชัน', 'ขยัน', 'rachan@company.com', '081-345-6789', 'นักบัญชี', 'Accounting', 30000, '2023-03-01', 'active', 1)
-//             ON CONFLICT DO NOTHING
-//         `);
-        
-//         res.json({ message: 'เพิ่มข้อมูลตัวอย่างเรียบร้อยแล้ว' });
-//     } catch (err) {
-//         console.error('Seed data error:', err);
-//         res.status(500).json({ error: err.message });
-//     }
-// });
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
